@@ -19,6 +19,7 @@ var secret = require('dvp-common-lite/Authentication/Secret.js');
 var Login = require("./Login");
 
 var mongomodels = require('dvp-mongomodels');
+var healthcheck = require('dvp-healthcheck/DBHealthChecker');
 
 var port = config.Host.port || 3000;
 var host = config.Host.vdomain || 'localhost';
@@ -33,6 +34,9 @@ app.use(passport.session());
 app.use(cookieParser());
 app.use(errorhandler({ dumpExceptions: true, showStack: true }));
 app.use(cors());
+
+var hc = new healthcheck(app, {mongo: mongomodels.connection});
+hc.Initiate();
 
 app.get('/', site.index);
 app.get('/login', site.loginForm);
