@@ -23,6 +23,17 @@ var healthcheck = require('dvp-healthcheck/DBHealthChecker');
 
 var port = config.Host.port || 3000;
 var host = config.Host.vdomain || 'localhost';
+process.on("uncaughtException", function(err) {
+  console.error(err);
+  console.log("[Unhandled Exception] Node Exiting...");
+  process.exit(1);
+});
+
+process.on("unhandledRejection", err => {
+  console.error(err);
+  console.log("[Unhandled Rejection] Node Exiting...");
+  process.exit(1);
+});
 
 app.set('view engine', 'ejs');
 
