@@ -52,10 +52,10 @@ module.exports = {
   },
   Redis: {
     mode: "instance", //instance, cluster, sentinel
-    ip: "ip",
+    ip: "",
     port: 6379,
-    user: "USER",
-    password: "pass",
+    user: "",
+    password: "",
     sentinels: {
       hosts: "SENTNELS_URL",
       port: 16389,
@@ -64,10 +64,10 @@ module.exports = {
   },
   Security: {
     mode: "instance", //instance, cluster, sentinel
-    ip: "ip",
+    ip: "",
     port: 6379,
-    user: "USER",
-    password: "pass",
+    user: "",
+    password: "",
     sentinels: {
       hosts: "SENTNELS_URL",
       port: 16389,
@@ -83,19 +83,19 @@ module.exports = {
     version: "1.0.0.0"
   },
   RabbitMQ: {
-    ip: "ip",
+    ip: "",
     port: 5672,
-    user: "duo",
-    password: "pass",
+    user: "",
+    password: "",
     vhost: "/"
   },
   Mongo: {
-    ip: "ip",
+    ip: "",
     port: "27017",
     dbname: "dvpdb",
-    password: "pass",
-    user: "user",
-    replicaset: ""
+    password: "",
+    user: "",
+    type: "mongodb+srv",
   },
   Services: {
     accessToken: "TOKEN",
