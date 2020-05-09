@@ -948,3 +948,4 @@ function RequestToBill(company, tenant, billInfo, callback){
 }
 
 module.exports.CreateOrganisationStanAlone = CreateOrganisationStanAlone;
+module.exports.redisClient = client;

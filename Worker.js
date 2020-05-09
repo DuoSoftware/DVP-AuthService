@@ -52,3 +52,5 @@ module.exports.PublishToQueue = function(messageType,sendObj ) {
     }
 }
 
+module.exports.RabbitMQ = queueConnection;
+
