@@ -436,7 +436,7 @@ var SetPackageToOrganisation = function(company, tenant, domainData, vPackage, o
 function AssignTaskToOrganisation(company, tenant, taskList){
     var taskInfoUrl = util.format("http://%s/DVP/API/%s/ResourceManager/TaskInfo",config.Services.resourceServiceHost, config.Services.resourceServiceVersion);
     var taskUrl = util.format("http://%s/DVP/API/%s/ResourceManager/Task",config.Services.resourceServiceHost, config.Services.resourceServiceVersion);
-    if(validator.isIP(config.Services.resourceServiceHost))
+    if(config.Services.dynamicPort || validator.isIP(config.Services.resourceServiceHost))
     {
         taskUrl = util.format("http://%s:%s/DVP/API/%s/ResourceManager/Task", config.Services.resourceServiceHost, config.Services.resourceServicePort, config.Services.resourceServiceVersion);
         taskInfoUrl = util.format("http://%s:%s/DVP/API/%s/ResourceManager/TaskInfo", config.Services.resourceServiceHost, config.Services.resourceServicePort, config.Services.resourceServiceVersion);
@@ -475,7 +475,7 @@ function AssignContextAndCloudEndUserToOrganisation(company, tenant, domain){
     var contextUrl = util.format("http://%s/DVP/API/%s/SipUser/Context",config.Services.sipuserendpointserviceHost, config.Services.sipuserendpointserviceVersion);
     var transferCodesUrl = util.format("http://%s/DVP/API/%s/SipUser/TransferCode",config.Services.sipuserendpointserviceHost, config.Services.sipuserendpointserviceVersion);
     var cloudEndUserUrl = util.format("http://%s/DVP/API/%s/CloudConfiguration/CloudEndUser",config.Services.clusterconfigserviceHost, config.Services.clusterconfigserviceVersion);
-    if(validator.isIP(config.Services.resourceServiceHost))
+    if(config.Services.dynamicPort || validator.isIP(config.Services.resourceServiceHost))
     {
         cloudEndUserUrl = util.format("http://%s:%s/DVP/API/%s/CloudConfiguration/CloudEndUser", config.Services.clusterconfigserviceHost, config.Services.sipuserendpointservicePort, config.Services.clusterconfigserviceVersion);
         contextUrl = util.format("http://%s:%s/DVP/API/%s/SipUser/Context", config.Services.sipuserendpointserviceHost, config.Services.clusterconfigservicePort, config.Services.sipuserendpointserviceVersion);
@@ -927,7 +927,7 @@ function CreateOrganisationStanAlone(user, companyname, timezone, callback) {
 function RequestToBill(company, tenant, billInfo, callback){
     try {
         var contextUrl = util.format("http://%s/DVP/API/%s/Billing/BuyPackage", config.Services.billingserviceHost, config.Services.billingserviceVersion);
-        if (validator.isIP(config.Services.billingserviceHost)) {
+        if (config.Services.dynamicPort || validator.isIP(config.Services.billingserviceHost)) {
             contextUrl = util.format("http://%s:%s/DVP/API/%s/Billing/BuyPackage", config.Services.billingserviceHost, config.Services.billingservicePort, config.Services.billingserviceVersion);
         }
         var companyInfo = util.format("%d:%d", tenant, company);
