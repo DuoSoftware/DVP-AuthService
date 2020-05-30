@@ -48,31 +48,31 @@ module.exports = {
     recaptcha_key: "6LezaAsUAAAAAFbtiyMzOlMmqEwzMwmMYszmO_Ve",
 
     ui_host: "http://localhost:3000/",
-    agent_host: "http://localhost:3000/"
+    agent_host: "http://localhost:3000/",
   },
   Redis: {
     mode: "instance", //instance, cluster, sentinel
-    ip: "",
+    ip: "13.59.52.179",
     port: 6379,
     user: "",
-    password: "",
+    password: "DuoS123",
     sentinels: {
       hosts: "SENTNELS_URL",
       port: 16389,
-      name: "redis-cluster"
-    }
+      name: "redis-cluster",
+    },
   },
   Security: {
     mode: "instance", //instance, cluster, sentinel
-    ip: "",
+    ip: "13.59.52.179",
     port: 6379,
     user: "",
-    password: "",
+    password: "DuoS123",
     sentinels: {
       hosts: "SENTNELS_URL",
       port: 16389,
-      name: "redis-cluster"
-    }
+      name: "redis-cluster",
+    },
   },
   Host: {
     profilesearch: "secondary",
@@ -80,22 +80,22 @@ module.exports = {
     vdomain: "localhost",
     domain: "localhost",
     port: "9001",
-    version: "1.0.0.0"
+    version: "1.0.0.0",
   },
   RabbitMQ: {
-    ip: "",
+    ip: "13.59.52.179",
     port: 5672,
-    user: "",
-    password: "",
-    vhost: "/"
+    user: "duo ",
+    password: "DuoS123",
+    vhost: "/",
   },
   Mongo: {
-    ip: "",
+    ip: "13.59.52.179",
     port: "27017",
     dbname: "dvpdb",
-    password: "",
-    user: "",
-    type: "mongodb+srv",
+    password: "DuoS123",
+    user: "duo",
+    type: "mongodb",
   },
   Services: {
     accessToken: "TOKEN",
@@ -114,14 +114,14 @@ module.exports = {
     notificationServiceHost: "notificationservice.app1.veery.cloud",
     notificationServicePort: "8089",
     notificationServiceVersion: "1.0.0.0",
-    dynamicPort : false
+    dynamicPort: false,
   },
 
   Tenant: {
-    activeTenant: 1
+    activeTenant: 1,
   },
 
   ActiveDirectory: {
-    groupName: "FaceTone"
-  }
+    groupName: "FaceTone",
+  },
 };
