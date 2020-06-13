@@ -449,6 +449,7 @@ function GetJWT(user, scopesx, client_id, type, req, done) {
           payload.exp = expin;
           payload.tenant = user.tenant;
           payload.company = user.company;
+          payload.context = scopes.context;
           //payload.aud = client.name;
 
           if (user.companyName) payload.companyName = user.companyName;
