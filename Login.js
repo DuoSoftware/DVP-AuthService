@@ -368,6 +368,9 @@ function GetJWT(user, scopesx, client_id, type, req, done) {
   var claimsKey = "claims:iss:" + user.username + ":" + jti;
   var tokenMap = "token:iss:" + user.username + ":*";
 
+  // token:iss:user {{1,abcd},{2,cdef}}
+  //
+ //
   if (commonsignature === true || commonsignature === "true") {
     var payload = {};
 
@@ -411,7 +414,7 @@ function GetJWT(user, scopesx, client_id, type, req, done) {
       multilogin === "false" ||
       (user.multi_login != undefined && user.multi_login === false)
     ) {
-      //////this operation is heavy - change the code //////////////////////////////////////
+      //////this operation is heavy - change the code//////////////////////////////////////
       redisClient.keys(tokenMap, function (err, res) {
         if (Array.isArray(res)) {
           res.forEach(function (item) {
@@ -433,6 +436,7 @@ function GetJWT(user, scopesx, client_id, type, req, done) {
     // results === [[null, 'OK'], [null, 'bar']]
   });
     */
+   ///tenant:<AGENT_CONSOLE>:LOGINS [{USER:NAME, TIME:TIME, JTI;JTI}]
     var scopes = GetScopes(user, scopesx);
     redisClient
       .multi()
