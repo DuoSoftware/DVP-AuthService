@@ -91,7 +91,7 @@ module.exports = {
   },
   Mongo: {
     ip: "13.59.52.179",
-    port: "27017",
+    port: "",
     dbname: "dvpdb",
     password: "DuoS123",
     user: "duo",
@@ -114,7 +114,7 @@ module.exports = {
     notificationServiceHost: "notificationservice.app1.veery.cloud",
     notificationServicePort: "8089",
     notificationServiceVersion: "1.0.0.0",
-    dynamicPort: false,
+    dynamicPort : true
   },
 
   Tenant: {
