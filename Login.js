@@ -28,6 +28,7 @@ var ADService = require("./ActiveDirectoryService");
 var UserInvitation = require("dvp-mongomodels/model/UserInvitation")
   .UserInvitation;
 var validator = require("validator");
+var activeUserHash = "current_active_users";
 
 var redisip = config.Redis.ip;
 var redisport = config.Redis.port;
@@ -367,6 +368,7 @@ function GetJWT(user, scopesx, client_id, type, req, done) {
   var redisKey = "token:iss:" + user.username + ":" + jti;
   var claimsKey = "claims:iss:" + user.username + ":" + jti;
   var tokenMap = "token:iss:" + user.username + ":*";
+  var loginKey = "tenant:" + req.body.console + ":logins";
 
   // token:iss:user {{1,abcd},{2,cdef}}
   //
@@ -442,6 +444,7 @@ function GetJWT(user, scopesx, client_id, type, req, done) {
       .multi()
       .set(redisKey, secret, "ex", expin)
       .set(claimsKey, JSON.stringify(scopes), "ex", expin)
+      .hset(loginKey, `${activeUserHash}_${req.body.console}`, JSON.stringify({username:user.username, time:Date.now(), jti: jti}))
       .exec(function (err, res) {
         if (!err) {
           //redisClient.expireat(redisKey, expin);
@@ -551,6 +554,24 @@ module.exports.Login = function (req, res) {
               return res
                 .status(401)
                 .send({ message: "User account is not active" });
+            }
+
+            if (config.auth.check_concurrent_limit) {
+              if(!org.concurrentAccessLimits || org.concurrentAccessLimits.length <= 0) {
+                return res
+                  .status(401)
+                  .send({ message: 'Please set concurrent access limits' });
+              }
+
+              var loginKey = "tenant:" + req.body.console + ":logins";
+              var packageAccessLimit = org.concurrentAccessLimits.find(al => al.accessType == req.body.console);
+
+              if(packageAccessLimit 
+                && redisClient.hlen(`${activeUserHash}_${req.body.console}`) >= packageAccessLimit.accessLimit) {
+                  return res
+                  .status(401)
+                  .send({ message: 'System has exceeded concurrent access limits. Please contact the admin.' });
+              }
             }
 
             //user = user.toObject();

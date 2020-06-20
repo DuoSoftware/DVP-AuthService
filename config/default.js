@@ -49,6 +49,7 @@ module.exports = {
 
     ui_host: "http://localhost:3000/",
     agent_host: "http://localhost:3000/",
+    check_concurrent_limit: true
   },
   Redis: {
     mode: "instance", //instance, cluster, sentinel
