@@ -10,7 +10,7 @@ var Client = require('dvp-mongomodels/model/Client');
 var User = require('dvp-mongomodels/model/User');
 var RefreshToken = require("dvp-mongomodels/model/RefreshToken");
 var AuthorizationCode = require('dvp-mongomodels/model/AuthorizationCodes');
-var accessToken = require ('dvp-mongomodels/model/AccessToken');
+var accessToken = require('dvp-mongomodels/model/AccessToken');
 var FlakeIdGen = require('flake-idgen')
 var intformat = require('biguint-format')
 var uuid = require('node-uuid');
@@ -21,7 +21,7 @@ var moment = require('moment');
 var redis = require('ioredis');
 var config = require('config');
 var messageFormatter = require('dvp-common-lite/CommonMessageGenerator/ClientMessageJsonFormatter.js');
-
+var activeUserHash = config.auth.active_user_hash;
 
 var redisip = config.Redis.ip;
 var redisport = config.Redis.port;
@@ -31,9 +31,9 @@ var redisdb = config.Redis.db;
 
 
 
-var redisSetting =  {
-    port:redisport,
-    host:redisip,
+var redisSetting = {
+    port: redisport,
+    host: redisip,
     family: 4,
     password: redispass,
     db: redisdb,
@@ -47,26 +47,26 @@ var redisSetting =  {
     }
 };
 
-if(redismode == 'sentinel'){
+if (redismode == 'sentinel') {
 
-    if(config.Redis.sentinels && config.Redis.sentinels.hosts && config.Redis.sentinels.port && config.Redis.sentinels.name){
+    if (config.Redis.sentinels && config.Redis.sentinels.hosts && config.Redis.sentinels.port && config.Redis.sentinels.name) {
         var sentinelHosts = config.Redis.sentinels.hosts.split(',');
-        if(Array.isArray(sentinelHosts) && sentinelHosts.length > 2){
+        if (Array.isArray(sentinelHosts) && sentinelHosts.length > 2) {
             var sentinelConnections = [];
 
-            sentinelHosts.forEach(function(item){
+            sentinelHosts.forEach(function (item) {
 
-                sentinelConnections.push({host: item, port:config.Redis.sentinels.port})
+                sentinelConnections.push({ host: item, port: config.Redis.sentinels.port })
 
             })
 
             redisSetting = {
-                sentinels:sentinelConnections,
+                sentinels: sentinelConnections,
                 name: config.Redis.sentinels.name,
                 password: redispass
             }
 
-        }else{
+        } else {
 
             console.log("No enough sentinel servers found .........");
         }
@@ -76,26 +76,27 @@ if(redismode == 'sentinel'){
 
 var redisClient = undefined;
 
-if(redismode != "cluster") {
+if (redismode != "cluster") {
     redisClient = new redis(redisSetting);
-}else{
+} else {
 
     var redisHosts = redisip.split(",");
-    if(Array.isArray(redisHosts)){
+    if (Array.isArray(redisHosts)) {
 
 
         redisSetting = [];
-        redisHosts.forEach(function(item){
+        redisHosts.forEach(function (item) {
             redisSetting.push({
                 host: item,
                 port: redisport,
                 family: 4,
-                password: redispass});
+                password: redispass
+            });
         });
 
         var redisClient = new redis.Cluster([redisSetting]);
 
-    }else{
+    } else {
 
         redisClient = new redis(redisSetting);
     }
@@ -112,18 +113,18 @@ var generator = new FlakeIdGen;
 
 var server = oauth2orize.createServer();
 
-server.serializeClient(function(client, done) {
+server.serializeClient(function (client, done) {
     return done(null, client.id);
 });
 
-server.deserializeClient(function(id, done) {
-    Client.findById(id, function(err, client) {
+server.deserializeClient(function (id, done) {
+    Client.findById(id, function (err, client) {
         if (err) { return done(err); }
         return done(null, client);
     });
 });
 
-server.grant(oauth2orize.grant.code(function(client, redirectURI, user,ares, reqObj, done) {
+server.grant(oauth2orize.grant.code(function (client, redirectURI, user, ares, reqObj, done) {
 
 
     var id1 = generator.next();
@@ -148,7 +149,7 @@ server.grant(oauth2orize.grant.code(function(client, redirectURI, user,ares, req
         }
     );
 
-    authorizationcode.save(function(err, authcode) {
+    authorizationcode.save(function (err, authcode) {
         if (err) {
             return done(err);
 
@@ -157,7 +158,7 @@ server.grant(oauth2orize.grant.code(function(client, redirectURI, user,ares, req
     });
 }));
 
-server.grant(oauth2orize.grant.token(function (client, user, ares,reqObj, done) {
+server.grant(oauth2orize.grant.token(function (client, user, ares, reqObj, done) {
     ///var token = uuid.v1();
 
 
@@ -165,8 +166,8 @@ server.grant(oauth2orize.grant.token(function (client, user, ares,reqObj, done) 
 
     var jti = uuid.v4();
     var secret = uuid.v4();
-    var expin  = moment().add(7, 'days').unix();
-    var redisKey = "token:iss:"+user.username+":"+jti;
+    var expin = moment().add(7, 'days').unix();
+    var redisKey = "token:iss:" + user.username + ":" + jti;
     redisClient.set(redisKey, secret, redis.print);
     redisClient.expireat(redisKey, expin);
 
@@ -182,7 +183,7 @@ server.grant(oauth2orize.grant.token(function (client, user, ares,reqObj, done) 
     //payload.scope = client.claims;
 
 
-    var scopes = GetScopes(user,reqObj.scope);
+    var scopes = GetScopes(user, reqObj.scope);
     payload.context = scopes.context;
     payload.scope = scopes.scope;
 
@@ -208,7 +209,7 @@ server.grant(oauth2orize.grant.token(function (client, user, ares,reqObj, done) 
 
             return done(err);
         }
-        return done(null, token, null, {expires_in: expin});
+        return done(null, token, null, { expires_in: expin });
     });
 
 
@@ -216,15 +217,15 @@ server.grant(oauth2orize.grant.token(function (client, user, ares,reqObj, done) 
 
 }));
 
-server.exchange(oauth2orize.exchange.code(function(client, code, redirectURI, done) {
-    AuthorizationCode.findOne({code: code}, function(err, authCode) {
+server.exchange(oauth2orize.exchange.code(function (client, code, redirectURI, done) {
+    AuthorizationCode.findOne({ code: code }, function (err, authCode) {
         if (err) { return done(err); }
         if (!authCode) { return done(null, false); }
         if (client.id !== authCode.clientId) { return done(null, false); }
         if (redirectURI !== authCode.redirectURL) { return done(null, false); }
 
-        AuthorizationCode.findOneAndRemove({code: code}, function(err) {
-            if(err) { return done(err); }
+        AuthorizationCode.findOneAndRemove({ code: code }, function (err) {
+            if (err) { return done(err); }
             //var token = uuid.v1();
 
 
@@ -242,8 +243,8 @@ server.exchange(oauth2orize.exchange.code(function(client, code, redirectURI, do
 
                 var jti = uuid.v4();
                 var secret = uuid.v4();
-                var expin  = moment().add(7, 'days').unix();
-                var redisKey = "token:iss:"+user.username+":"+jti;
+                var expin = moment().add(7, 'days').unix();
+                var redisKey = "token:iss:" + user.username + ":" + jti;
                 redisClient.set(redisKey, secret, redis.print);
                 redisClient.expireat(redisKey, expin);
 
@@ -258,7 +259,7 @@ server.exchange(oauth2orize.exchange.code(function(client, code, redirectURI, do
 
 
 
-                var scopes = GetScopes(user,authCode.scope);
+                var scopes = GetScopes(user, authCode.scope);
                 payload.context = scopes.context;
                 payload.scope = scopes.scope;
 
@@ -308,11 +309,11 @@ server.exchange(oauth2orize.exchange.code(function(client, code, redirectURI, do
                             if (err) {
                                 return done(err);
                             }
-                            return done(null, token, rToken, {expires_in: expin});
+                            return done(null, token, rToken, { expires_in: expin });
                         });
                     }
                     else {
-                        return done(null, token, rToken, {expires_in: expin});
+                        return done(null, token, rToken, { expires_in: expin });
                     }
                     /////////////////////////////////////////////////////////////////////////////////
                 });
@@ -322,7 +323,7 @@ server.exchange(oauth2orize.exchange.code(function(client, code, redirectURI, do
     });
 }));
 
-server.exchange('urn:ietf:params:oauth:grant-type:jwt-bearer', jwtBearer(function(client, data, signature, done) {
+server.exchange('urn:ietf:params:oauth:grant-type:jwt-bearer', jwtBearer(function (client, data, signature, done) {
     var crypto = require('crypto');
     var pub = "secret";
     var verifier = crypto.createVerify("RSA-SHA256");
@@ -334,7 +335,7 @@ server.exchange('urn:ietf:params:oauth:grant-type:jwt-bearer', jwtBearer(functio
     var decoded = jwt.decode(token);
 
 
-    Client.findOne({clientId: decoded.prn, redirectURL: decoded.url}, function (err, client) {
+    Client.findOne({ clientId: decoded.prn, redirectURL: decoded.url }, function (err, client) {
         if (err) {
             return done(err);
         }
@@ -351,7 +352,7 @@ server.exchange('urn:ietf:params:oauth:grant-type:jwt-bearer', jwtBearer(functio
 
                 } else {
 
-                    User.findOne({username: decoded.iss}, '+password',function(err, user) {
+                    User.findOne({ username: decoded.iss }, '+password', function (err, user) {
 
                         var accessToken = null;
                         if (!err) {
@@ -359,8 +360,8 @@ server.exchange('urn:ietf:params:oauth:grant-type:jwt-bearer', jwtBearer(functio
 
                             var jti = uuid.v4();
                             var secret = uuid.v4();
-                            var expin  = moment().add(7, 'days').unix();
-                            var redisKey = "token:iss:"+user.username+":"+jti;
+                            var expin = moment().add(7, 'days').unix();
+                            var redisKey = "token:iss:" + user.username + ":" + jti;
                             redisClient.set(redisKey, secret, redis.print);
                             redisClient.expireat(redisKey, expin);
 
@@ -377,7 +378,7 @@ server.exchange('urn:ietf:params:oauth:grant-type:jwt-bearer', jwtBearer(functio
 
 
 
-                            var scopes = GetScopes(user,decoded.scope);
+                            var scopes = GetScopes(user, decoded.scope);
                             payload.context = scopes.context;
                             payload.scope = scopes.scope;
 
@@ -402,7 +403,7 @@ server.exchange(oauth2orize.exchange.password(function (client, username, passwo
     //Validate the user
 
 
-    User.findOne({username: username},'+password', function (err, user) {
+    User.findOne({ username: username }, '+password', function (err, user) {
         if (err) {
             return done(err);
         }
@@ -410,7 +411,7 @@ server.exchange(oauth2orize.exchange.password(function (client, username, passwo
             return done(null, false);
         }
 
-        if(!password){
+        if (!password) {
 
             return done(null, false);
         }
@@ -426,7 +427,7 @@ server.exchange(oauth2orize.exchange.password(function (client, username, passwo
 
                 return done(null, false);
 
-            }else{
+            } else {
 
 
                 var scopeArray = scope;
@@ -434,8 +435,8 @@ server.exchange(oauth2orize.exchange.password(function (client, username, passwo
 
                 var jti = uuid.v4();
                 var secret = uuid.v4();
-                var expin  = moment().add(7, 'days').unix();
-                var redisKey = "token:iss:"+user.username+":"+jti;
+                var expin = moment().add(7, 'days').unix();
+                var redisKey = "token:iss:" + user.username + ":" + jti;
                 redisClient.set(redisKey, secret, redis.print);
                 redisClient.expireat(redisKey, expin);
 
@@ -450,7 +451,7 @@ server.exchange(oauth2orize.exchange.password(function (client, username, passwo
 
                 //payload.scope = scope;
 
-                var scopes = GetScopes(user,scopeArray);
+                var scopes = GetScopes(user, scopeArray);
                 payload.context = scopes.context;
                 payload.scope = scopes.scope;
 
@@ -491,11 +492,11 @@ server.exchange(oauth2orize.exchange.password(function (client, username, passwo
                             if (err) {
                                 return done(err);
                             }
-                            return done(null, token, rToken, {expires_in: expin});
+                            return done(null, token, rToken, { expires_in: expin });
                         });
                     }
                     else {
-                        return done(null, token, rToken, {expires_in: expin});
+                        return done(null, token, rToken, { expires_in: expin });
                     }
 
                 });
@@ -532,7 +533,7 @@ server.exchange(oauth2orize.exchange.clientCredentials(function (client, scope, 
 server.exchange(oauth2orize.exchange.refreshToken(function (client, refreshToken, scope, done) {
 
 
-    RefreshToken.findOne({token: refreshToken}, function (err, refToken) {
+    RefreshToken.findOne({ token: refreshToken }, function (err, refToken) {
         if (err) {
             return done(err);
         }
@@ -563,8 +564,8 @@ server.exchange(oauth2orize.exchange.refreshToken(function (client, refreshToken
 
             var jti = uuid.v4();
             var secret = uuid.v4();
-            var expin  = moment().add(7, 'days').unix();
-            var redisKey = "token:iss:"+user.username+":"+jti;
+            var expin = moment().add(7, 'days').unix();
+            var redisKey = "token:iss:" + user.username + ":" + jti;
             redisClient.set(redisKey, secret, redis.print);
             redisClient.expireat(redisKey, expin);
 
@@ -580,7 +581,7 @@ server.exchange(oauth2orize.exchange.refreshToken(function (client, refreshToken
             //payload.scope = scope;
 
 
-            var scopes = GetScopes(user,scopeArray);
+            var scopes = GetScopes(user, scopeArray);
             payload.context = scopes.context;
             payload.scope = scopes.scope;
 
@@ -607,7 +608,7 @@ server.exchange(oauth2orize.exchange.refreshToken(function (client, refreshToken
 
                     return done(err);
                 }
-                return done(null, token, null, {expires_in: expin});
+                return done(null, token, null, { expires_in: expin });
             });
 
 
@@ -618,10 +619,10 @@ server.exchange(oauth2orize.exchange.refreshToken(function (client, refreshToken
 
 exports.authorization = [
     login.ensureLoggedIn(),
-    server.authorization(function(clientID, redirectURI, scope, done) {
-        Client.findOne({clientId: clientID, redirectURL: redirectURI}, function(err, client) {
+    server.authorization(function (clientID, redirectURI, scope, done) {
+        Client.findOne({ clientId: clientID, redirectURL: redirectURI }, function (err, client) {
             if (err) { return done(err); }
-            else if(!client) {
+            else if (!client) {
 
                 var noClientErr = new Error("No client found");
                 return done(noClientErr);
@@ -634,7 +635,7 @@ exports.authorization = [
             return done(null, client, redirectURI);
         });
     }),
-    function(req, res){
+    function (req, res) {
         res.render('dialog', { transactionID: req.oauth2.transactionID, user: req.user, client: req.oauth2.client });
     }
 ]
@@ -650,41 +651,44 @@ exports.token = [
     server.errorHandler()
 ]
 
-exports.revoketoken = function(req, res, next) {
+exports.revoketoken = function (req, res, next) {
     var id = req.params.jti;
     var jsonString = {};
     var iss = req.user.iss;
 
     jsonString = messageFormatter.FormatMessage(undefined, "Revoke token failed", false, undefined);
     if (iss) {
-        accessToken.findOneAndUpdate({jti: id},{logged_out_at:Date.now()}, function (err) {
+        accessToken.findOneAndUpdate({ jti: id }, { logged_out_at: Date.now() }, function (err, token) {
 
             if (err) {
                 jsonString = messageFormatter.FormatMessage(err, "Revoke token failed", false, undefined);
             } else {
-
-
+                var decoded = jwt.decode(token);
+                var loginKey = "tenant:" + decoded.console + ":logins";
                 var redisKey = "token:iss:" + iss + ":" + id;
-                redisClient.del(redisKey, redis.print);
+                redisClient
+                    .multi()
+                    .del(redisKey, redis.print)
+                    .hdel(loginKey, `${activeUserHash}_${decoded.console}`)
+                    .exec(function (err, res) {
+                        if (!err) {
+                            jsonString = messageFormatter.FormatMessage(undefined, "Revoke token successful", true, undefined);
+                        }
 
-
-                jsonString = messageFormatter.FormatMessage(undefined, "Revoke token successful", true, undefined);
+                        res.end(jsonString);
+                    });
             }
-
-            res.end(jsonString);
-
         });
 
 
     } else {
-
         res.end(jsonString);
     }
 
 
 }
 
-function GetScopes(user, claims){
+function GetScopes(user, claims) {
 
 
     var context = {};
@@ -692,7 +696,7 @@ function GetScopes(user, claims){
     payload.context = {};
     payload.scope = [];
 
-    if(claims) {
+    if (claims) {
         var index = claims.indexOf("profile_contacts");
 
         if (index > -1) {
@@ -752,16 +756,16 @@ function GetScopes(user, claims){
                 var action = arr[0];
                 var resource = arr[1];
 
-                if(action == "profile"){
+                if (action == "profile") {
 
 
-                    if(resource == "password"){
+                    if (resource == "password") {
 
                         payload.context[resource] = undefined;
 
 
                     }
-                    else{
+                    else {
 
                         payload.context[resource] = user[resource];
 
@@ -769,10 +773,11 @@ function GetScopes(user, claims){
 
                 }
 
-            }});
+            }
+        });
 
 
-       /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 
@@ -781,26 +786,26 @@ function GetScopes(user, claims){
         if (index > -1) {
 
 
-            user.user_scopes.forEach(function (item){
+            user.user_scopes.forEach(function (item) {
 
 
                 var actionObj = {};
                 actionObj.resource = item.scope;
                 actionObj.actions = [];
 
-                if(item.read){
+                if (item.read) {
 
                     actionObj.actions.push("read");
                 }
 
-                if(item.write){
+                if (item.write) {
 
                     actionObj.actions.push("write");
 
 
                 }
 
-                if(item.delete){
+                if (item.delete) {
 
                     actionObj.actions.push("delete");
 
@@ -817,7 +822,7 @@ function GetScopes(user, claims){
 
 
 
-        }else {
+        } else {
 
             claims.forEach(function (value) {
 

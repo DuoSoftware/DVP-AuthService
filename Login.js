@@ -28,7 +28,7 @@ var ADService = require("./ActiveDirectoryService");
 var UserInvitation = require("dvp-mongomodels/model/UserInvitation")
   .UserInvitation;
 var validator = require("validator");
-var activeUserHash = "current_active_users";
+var activeUserHash = config.auth.active_user_hash;
 
 var redisip = config.Redis.ip;
 var redisport = config.Redis.port;
@@ -383,7 +383,7 @@ function GetJWT(user, scopesx, client_id, type, req, done) {
     payload.exp = expin;
     payload.tenant = user.tenant;
     payload.company = user.company;
-    //payload.aud = client.name;
+    payload.console = req.body.console;
 
     if (user.companyName) payload.companyName = user.companyName;
 
