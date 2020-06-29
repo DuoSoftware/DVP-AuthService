@@ -28,7 +28,6 @@ var ADService = require("./ActiveDirectoryService");
 var UserInvitation = require("dvp-mongomodels/model/UserInvitation")
   .UserInvitation;
 var validator = require("validator");
-var activeUserHash = config.auth.active_user_hash;
 
 var redisip = config.Redis.ip;
 var redisport = config.Redis.port;
@@ -383,7 +382,6 @@ function GetJWT(user, scopesx, client_id, type, req, done) {
     payload.exp = expin;
     payload.tenant = user.tenant;
     payload.company = user.company;
-    payload.console = req.body.console;
 
     if (user.companyName) payload.companyName = user.companyName;
 
@@ -401,6 +399,7 @@ function GetJWT(user, scopesx, client_id, type, req, done) {
       scope: scopesx,
       expirationDate: expin,
       type: type,
+      console: req.body.console
     });
 
     accesstoken.save(function (err, accesstoken) {
@@ -444,7 +443,7 @@ function GetJWT(user, scopesx, client_id, type, req, done) {
       .multi()
       .set(redisKey, secret, "ex", expin)
       .set(claimsKey, JSON.stringify(scopes), "ex", expin)
-      .hset(loginKey, `${activeUserHash}_${req.body.console}`, JSON.stringify({username:user.username, time:Date.now(), jti: jti}))
+      .hset(loginKey, user._id, JSON.stringify({username:user.username, time:Date.now(), jti: jti}))
       .exec(function (err, res) {
         if (!err) {
           //redisClient.expireat(redisKey, expin);
@@ -475,6 +474,7 @@ function GetJWT(user, scopesx, client_id, type, req, done) {
             scope: scopesx,
             expirationDate: expin,
             type: type,
+            console: req.body.console
           });
 
           accesstoken.save(function (err, accesstoken) {
@@ -530,7 +530,7 @@ module.exports.Login = function (req, res) {
       if (org && org.companyEnabled) {
         UserAccount.findOne(
           { tenant: org.tenant, company: org.id, user: user.username },
-          function (err, account) {
+          async function (err, account) {
             if (err) {
               return res
                 .status(401)
@@ -566,8 +566,10 @@ module.exports.Login = function (req, res) {
               var loginKey = "tenant:" + req.body.console + ":logins";
               var packageAccessLimit = org.concurrentAccessLimits.find(al => al.accessType == req.body.console);
 
+              var currentConcurrentUsers = await redisClient.hlen(loginKey);
+
               if(packageAccessLimit 
-                && redisClient.hlen(`${activeUserHash}_${req.body.console}`) >= packageAccessLimit.accessLimit) {
+                && currentConcurrentUsers >= packageAccessLimit.accessLimit) {
                   return res
                   .status(401)
                   .send({ message: 'System has exceeded concurrent access limits. Please contact the admin.' });

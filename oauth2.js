@@ -21,7 +21,6 @@ var moment = require('moment');
 var redis = require('ioredis');
 var config = require('config');
 var messageFormatter = require('dvp-common-lite/CommonMessageGenerator/ClientMessageJsonFormatter.js');
-var activeUserHash = config.auth.active_user_hash;
 
 var redisip = config.Redis.ip;
 var redisport = config.Redis.port;
@@ -663,19 +662,20 @@ exports.revoketoken = function (req, res, next) {
             if (err) {
                 jsonString = messageFormatter.FormatMessage(err, "Revoke token failed", false, undefined);
             } else {
-                var decoded = jwt.decode(token);
-                var loginKey = "tenant:" + decoded.console + ":logins";
+                var loginKey = "tenant:" + token.console + ":logins";
                 var redisKey = "token:iss:" + iss + ":" + id;
                 redisClient
                     .multi()
                     .del(redisKey, redis.print)
-                    .hdel(loginKey, `${activeUserHash}_${decoded.console}`)
-                    .exec(function (err, res) {
+                    .hdel(loginKey, token.userId)
+                    .exec(function (err, result) {
                         if (!err) {
                             jsonString = messageFormatter.FormatMessage(undefined, "Revoke token successful", true, undefined);
                         }
 
-                        res.end(jsonString);
+                        if(res) {
+                            res.end(jsonString);
+                        }
                     });
             }
         });
