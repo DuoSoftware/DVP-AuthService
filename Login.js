@@ -360,18 +360,19 @@ function GetScopes(user, claims) {
   return payload;
 }
 
-function GetJWT(user, scopesx, client_id, type, req, done) {
+function GetJWT(user, scopesx, client_id, type, req, done, loginKey, orgId) {
   var jti = uuid.v4();
   var secret = uuid.v4();
   var expin = moment().add(7, "days").unix();
   var redisKey = "token:iss:" + user.username + ":" + jti;
   var claimsKey = "claims:iss:" + user.username + ":" + jti;
   var tokenMap = "token:iss:" + user.username + ":*";
-  var loginKey = "tenant:" + req.body.console + ":logins";
 
-  // token:iss:user {{1,abcd},{2,cdef}}
-  //
- //
+  var userTokenListKey = '';
+  if(loginKey) {
+    userTokenListKey = loginKey + ':' + user._id;
+  }
+
   if (commonsignature === true || commonsignature === "true") {
     var payload = {};
 
@@ -399,7 +400,8 @@ function GetJWT(user, scopesx, client_id, type, req, done) {
       scope: scopesx,
       expirationDate: expin,
       type: type,
-      console: req.body.console
+      console: req.body.console,
+      orgId: orgId
     });
 
     accesstoken.save(function (err, accesstoken) {
@@ -426,6 +428,10 @@ function GetJWT(user, scopesx, client_id, type, req, done) {
           });
         }
       });
+
+      if (loginKey && userTokenListKey && config.auth.check_concurrent_limit) {
+        redisClient.del(userTokenListKey);
+      }
     }
 
     /*
@@ -439,12 +445,18 @@ function GetJWT(user, scopesx, client_id, type, req, done) {
     */
    ///tenant:<AGENT_CONSOLE>:LOGINS [{USER:NAME, TIME:TIME, JTI;JTI}]
     var scopes = GetScopes(user, scopesx);
-    redisClient
+    var redisMulti = redisClient
       .multi()
       .set(redisKey, secret, "ex", expin)
-      .set(claimsKey, JSON.stringify(scopes), "ex", expin)
-      .hset(loginKey, user._id, JSON.stringify({username:user.username, time:Date.now(), jti: jti}))
-      .exec(function (err, res) {
+      .set(claimsKey, JSON.stringify(scopes), "ex", expin);      
+
+      if (loginKey && userTokenListKey && config.auth.check_concurrent_limit) {
+        redisMulti = redisMulti
+          .hset(loginKey, user._id, JSON.stringify({username:user.username, time:Date.now()}))
+          .lpush(userTokenListKey, jti);
+      }
+
+      redisMulti.exec(function (err, res) {
         if (!err) {
           //redisClient.expireat(redisKey, expin);
 
@@ -474,7 +486,8 @@ function GetJWT(user, scopesx, client_id, type, req, done) {
             scope: scopesx,
             expirationDate: expin,
             type: type,
-            console: req.body.console
+            console: req.body.console,
+            orgId: orgId
           });
 
           accesstoken.save(function (err, accesstoken) {
@@ -556,16 +569,17 @@ module.exports.Login = function (req, res) {
                 .send({ message: "User account is not active" });
             }
 
+            var loginKey = `tenant:${config.Tenant.activeTenant}:company:${org.id}:${req.body.console}:logins`;
             if (config.auth.check_concurrent_limit) {
               if(!org.concurrentAccessLimits || org.concurrentAccessLimits.length <= 0) {
                 return res
                   .status(401)
                   .send({ message: 'Please set concurrent access limits' });
               }
-
-              var loginKey = "tenant:" + req.body.console + ":logins";
+              
               var packageAccessLimit = org.concurrentAccessLimits.find(al => al.accessType == req.body.console);
 
+              // remove async await
               var currentConcurrentUsers = await redisClient.hlen(loginKey);
 
               if(packageAccessLimit 
@@ -681,7 +695,8 @@ module.exports.Login = function (req, res) {
                               message: "Request console is not valid ...",
                             });
                           } else {
-                            if (console.consoleName == "OPERATOR_CONSOLE") {
+                            if (console.consoleName == "OPERATOR_CONSOLE" 
+                                || console.consoleName == "ADMIN_CONSOLE") {
                               var bill_token_key =
                                 config.Tenant.activeTenant + "_BILL_TOKEN";
                               var Hash_token_key =
@@ -747,7 +762,9 @@ module.exports.Login = function (req, res) {
                                                     "Invalid email and/or password",
                                                 });
                                               }
-                                            }
+                                            },
+                                            loginKey,
+                                            org.id
                                           );
                                         } else {
                                           return res.status(449).send({
@@ -802,7 +819,9 @@ module.exports.Login = function (req, res) {
                                           "Invalid email and/or password",
                                       });
                                     }
-                                  }
+                                  },
+                                  loginKey,
+                                  org.id
                                 );
                               } else {
                                 return res.status(449).send({
@@ -912,7 +931,9 @@ module.exports.Login = function (req, res) {
                                                 "Invalid email and/or password",
                                             });
                                           }
-                                        }
+                                        },
+                                        loginKey,
+                                        org.id
                                       );
                                     } else {
                                       return res.status(449).send({
@@ -966,7 +987,9 @@ module.exports.Login = function (req, res) {
                                     message: "Invalid email and/or password",
                                   });
                                 }
-                              }
+                              },
+                              loginKey,
+                              org.id
                             );
                           } else {
                             return res.status(449).send({

@@ -662,19 +662,33 @@ exports.revoketoken = function (req, res, next) {
             if (err) {
                 jsonString = messageFormatter.FormatMessage(err, "Revoke token failed", false, undefined);
             } else {
-                var loginKey = "tenant:" + token.console + ":logins";
+                var loginKey = `tenant:${config.Tenant.activeTenant}:company:${token.orgId}:${token.console}:logins`;
+                var userTokenListKey = loginKey + ':' + token.userId;
                 var redisKey = "token:iss:" + iss + ":" + id;
+
                 redisClient
                     .multi()
                     .del(redisKey, redis.print)
-                    .hdel(loginKey, token.userId)
+                    .lrem(userTokenListKey, 0, id)
                     .exec(function (err, result) {
                         if (!err) {
                             jsonString = messageFormatter.FormatMessage(undefined, "Revoke token successful", true, undefined);
                         }
 
-                        if(res) {
-                            res.end(jsonString);
+                        if (config.auth.check_concurrent_limit) {
+                            redisClient.llen(userTokenListKey).then(function (value) {
+                                if (value == 0) {
+                                    redisClient.hdel(loginKey, token.userId);
+                                }
+
+                                if (res) {
+                                    res.end(jsonString);
+                                }
+                            });
+                        } else {
+                            if (res) {
+                                res.end(jsonString);
+                            }
                         }
                     });
             }
