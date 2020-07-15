@@ -19,7 +19,6 @@ var bcrypt = require("bcryptjs");
 var qs = require("querystring");
 var PublishToQueue = require("./Worker").PublishToQueue;
 var util = require("util");
-var crypto = require("crypto");
 var accessToken = require("dvp-mongomodels/model/AccessToken");
 var logger = require("dvp-common-lite/LogHandler/CommonLogHandler.js").logger;
 var crypto = require("crypto");
