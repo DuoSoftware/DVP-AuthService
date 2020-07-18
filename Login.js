@@ -368,9 +368,9 @@ function GetJWT(user, scopesx, client_id, type, req, done, loginKey, orgId) {
   var claimsKey = "claims:iss:" + user.username + ":" + jti;
   var tokenMap = "token:iss:" + user.username + ":*";
 
-  var userTokenListKey = '';
-  if(loginKey) {
-    userTokenListKey = loginKey + ':' + user._id;
+  var userTokenListKey = "";
+  if (loginKey) {
+    userTokenListKey = loginKey + ":" + user._id;
   }
 
   if (commonsignature === true || commonsignature === "true") {
@@ -401,7 +401,7 @@ function GetJWT(user, scopesx, client_id, type, req, done, loginKey, orgId) {
       expirationDate: expin,
       type: type,
       console: req.body.console,
-      orgId: orgId
+      orgId: orgId,
     });
 
     accesstoken.save(function (err, accesstoken) {
@@ -418,43 +418,58 @@ function GetJWT(user, scopesx, client_id, type, req, done, loginKey, orgId) {
       (user.multi_login != undefined && user.multi_login === false)
     ) {
       //////this operation is heavy - change the code//////////////////////////////////////
-      redisClient.keys(tokenMap, function (err, res) {
-        if (Array.isArray(res)) {
-          res.forEach(function (item) {
-            //var delRedisKey = "token:iss:"+user.username+":"+item;
-            redisClient.del(item, function (err, res) {
-              logger.info("JTI deleted -> ", item);
-            });
+      // redisClient.keys(tokenMap, function (err, res) {
+      //   if (Array.isArray(res)) {
+      //     res.forEach(function (item) {
+      //       //var delRedisKey = "token:iss:"+user.username+":"+item;
+      //       redisClient.del(item, function (err, res) {
+      //         logger.info("JTI deleted -> ", item);
+      //       });
+      //     });
+      //   }
+      // });
+
+      ///////////////////////////////////////////test this function///////////////////////////
+      redisClient.lrange(userTokenListKey, 0, -1, (err, items) => {
+        //redisClient.del(userTokenListKey);
+        if (!err) {
+          var pipeline = redisClient.multi();
+          items.forEach((key) => {
+            pipeline.del(key);
           });
+          pipeline.exec((err, result) => {
+            if (err) {
+              logger.error(
+                `Delete multiple items on login failed ${err.message}`
+              );
+            }
+            GetJWTInner();
+          });
+        } else {
+          logger.error(`Get list of keys error ${err.message}`);
+          GetJWTInner();
         }
       });
-
-      if (loginKey && userTokenListKey && config.auth.check_concurrent_limit) {
-        redisClient.del(userTokenListKey);
-      }
+    } else {
+      GetJWTInner();
     }
 
-    /*
-    redis
-  .multi()
-  .set("foo", "bar")
-  .get("foo")
-  .exec(function (err, results) {
-    // results === [[null, 'OK'], [null, 'bar']]
-  });
-    */
-   ///tenant:<AGENT_CONSOLE>:LOGINS [{USER:NAME, TIME:TIME, JTI;JTI}]
-    var scopes = GetScopes(user, scopesx);
-    var redisMulti = redisClient
-      .multi()
-      .set(redisKey, secret, "ex", expin)
-      .set(claimsKey, JSON.stringify(scopes), "ex", expin);      
+    let GetJWTInner = function () {
+      var scopes = GetScopes(user, scopesx);
+      var redisMulti = redisClient
+        .multi()
+        .set(redisKey, secret, "ex", expin)
+        .set(claimsKey, JSON.stringify(scopes), "ex", expin);
 
-      if (loginKey && userTokenListKey && config.auth.check_concurrent_limit) {
-        redisMulti = redisMulti
-          .hset(loginKey, user._id, JSON.stringify({username:user.username, time:Date.now()}))
-          .lpush(userTokenListKey, jti);
-      }
+      //if (loginKey && userTokenListKey && config.auth.check_concurrent_limit) {
+      redisMulti = redisMulti
+        .hset(
+          loginKey,
+          user._id,
+          JSON.stringify({ username: user.username, time: Date.now() })
+        )
+        .lpush(userTokenListKey, jti);
+      // }
 
       redisMulti.exec(function (err, res) {
         if (!err) {
@@ -487,7 +502,7 @@ function GetJWT(user, scopesx, client_id, type, req, done, loginKey, orgId) {
             expirationDate: expin,
             type: type,
             console: req.body.console,
-            orgId: orgId
+            orgId: orgId,
           });
 
           accesstoken.save(function (err, accesstoken) {
@@ -500,6 +515,7 @@ function GetJWT(user, scopesx, client_id, type, req, done, loginKey, orgId) {
           return done(err, false, undefined);
         }
       });
+    };
   }
 }
 
@@ -512,6 +528,7 @@ function Encrypt(plainText, workingKey) {
   return encoded;
 }
 
+///////////////////////////////////////////refactor this method, Lots of duplicates////////////////////////////////
 module.exports.Login = function (req, res) {
   //email.contact
   User.findOne({ username: req.body.userName }, "+password", function (
@@ -541,369 +558,291 @@ module.exports.Login = function (req, res) {
       }
 
       if (org && org.companyEnabled) {
-        UserAccount.findOne(
-          { tenant: org.tenant, company: org.id, user: user.username },
-          async function (err, account) {
-            if (err) {
-              return res
-                .status(401)
-                .send({ message: "User account verification failed" });
-            }
-            if (!account) {
-              return res.status(401).send({ message: "Invalid user account" });
-            }
+        var loginKey = `tenant:${config.Tenant.activeTenant}:company:${org.id}:${req.body.console}:logins`;
 
+        if (
+          (config.auth.check_concurrent_limit && !org.concurrentAccessLimits) ||
+          org.concurrentAccessLimits.length <= 0
+        ) {
+          return res
+            .status(401)
+            .send({ message: "Please set concurrent access limits" });
+        }
+
+        var packageAccessLimit = org.concurrentAccessLimits.find(
+          (al) => al.accessType == req.body.console
+        );
+
+        // remove async await
+        redisClient.hlen(loginKey, (err, currentConcurrentUsers) => {
+          if (!err) {
             if (
-              (config.auth.login_verification === true ||
-                config.auth.login_verification === "true") &&
-              account.verified != true
+              config.auth.check_concurrent_limit &&
+              packageAccessLimit &&
+              currentConcurrentUsers >= packageAccessLimit.accessLimit
             ) {
-              return res
-                .status(401)
-                .send({ message: "User account is not verified" });
-            }
-
-            if (account.active != true) {
-              return res
-                .status(401)
-                .send({ message: "User account is not active" });
-            }
-
-            var loginKey = `tenant:${config.Tenant.activeTenant}:company:${org.id}:${req.body.console}:logins`;
-            if (config.auth.check_concurrent_limit) {
-              if(!org.concurrentAccessLimits || org.concurrentAccessLimits.length <= 0) {
-                return res
-                  .status(401)
-                  .send({ message: 'Please set concurrent access limits' });
-              }
-              
-              var packageAccessLimit = org.concurrentAccessLimits.find(al => al.accessType == req.body.console);
-
-              // remove async await
-              var currentConcurrentUsers = await redisClient.hlen(loginKey);
-
-              if(packageAccessLimit 
-                && currentConcurrentUsers >= packageAccessLimit.accessLimit) {
-                  return res
-                  .status(401)
-                  .send({ message: 'System has exceeded concurrent access limits. Please contact the admin.' });
-              }
-            }
-
-            //user = user.toObject();
-            user._doc.tenant = org.tenant;
-            user._doc.company = org.id;
-            user.companyName = org.companyName;
-            user._doc.multi_login = account.multi_login;
-            user._doc.user_meta = account.user_meta;
-            user._doc.app_meta = account.app_meta;
-            user._doc.user_scopes = account.user_scopes;
-            user._doc.client_scopes = account.client_scopes;
-            user._doc.resourceid = account.resource_id;
-            user._doc.veeryaccount = account.veeryaccount;
-            user._doc.multi_login = account.multi_login;
-
-            logger.info(
-              "config.auth.login_verification --> " +
-                config.auth.login_verification +
-                (config.auth.login_verification === true) +
-                " user.verified --->" +
-                user.verified +
-                (user.verified === false) +
-                " result -->" +
-                (config.auth.login_verification == true &&
-                  user.verified == false)
-            );
-
-            if (
-              (config.auth.login_verification === true ||
-                config.auth.login_verification === "true") &&
-              user.verified === false
-            ) {
-              //res.status(449 ).send({message: 'Activate your account before login'});
-              crypto.randomBytes(20, function (err, buf) {
-                var token = buf.toString("hex");
-
-                ////////////////////hosted location from config////////////////////
-                var url = config.auth.ui_host + "#/activate/" + token;
-
-                redisClient.set("activate" + ":" + token, user._id, function (
-                  err,
-                  val
-                ) {
-                  if (err) {
-                    res
-                      .status(404)
-                      .send({ message: "Create activation token failed" });
-                  } else {
-                    redisClient.expireat(
-                      "activate" + ":" + token,
-                      parseInt(+new Date() / 1000) + 86400
-                    );
-                    var sendObj = {
-                      company: config.Tenant.activeCompany,
-                      tenant: config.Tenant.activeTenant,
-                    };
-
-                    sendObj.to = user.email.contact;
-                    sendObj.from = "no-reply";
-                    sendObj.template = "By-User Registration Confirmation";
-                    sendObj.Parameters = {
-                      username: user.username,
-                      created_at: new Date(),
-                      url: url,
-                    };
-
-                    PublishToQueue("EMAILOUT", sendObj);
-                    return res
-                      .status(449)
-                      .send({ message: "Activate your account before login" });
-                  }
-                });
+              return res.status(401).send({
+                message:
+                  "System has exceeded concurrent access limits. Please contact the admin.",
               });
             } else {
-              if (user.auth_mechanism && user.auth_mechanism === "ad") {
-                ADService.AuthenticateUser(
-                  user.tenant,
-                  user.company,
-                  req.body.userName,
-                  req.body.password,
-                  function (err, auth) {
-                    if (err) {
-                      return res.status(401).send({ message: err.message });
-                    }
-
-                    var claims_arr = ["all_all"];
-                    if (
-                      req.body.scope &&
-                      util.isArray(req.body.scope) &&
-                      req.body.scope.length > 0
-                    ) {
-                      claims_arr = req.body.scope;
-                    }
-
-                    Console.findOne(
-                      { consoleName: req.body.console },
-                      function (err, console) {
-                        if (err) {
-                          return res.status(449).send({
-                            message: "Request console is not valid ...",
-                          });
-                        } else {
-                          if (!console) {
-                            return res.status(449).send({
-                              message: "Request console is not valid ...",
-                            });
-                          } else {
-                            if (console.consoleName == "OPERATOR_CONSOLE" 
-                                || console.consoleName == "ADMIN_CONSOLE") {
-                              var bill_token_key =
-                                config.Tenant.activeTenant + "_BILL_TOKEN";
-                              var Hash_token_key =
-                                config.Tenant.activeTenant + "_BILL_HASH_TOKEN";
-
-                              logger.info(
-                                "The bill token key is " + bill_token_key
-                              );
-                              logger.info(
-                                "The hash token key is " + Hash_token_key
-                              );
-
-                              redisClient.get(bill_token_key, function (
-                                err,
-                                reply
-                              ) {
-                                if (!err && reply) {
-                                  var bill_token = reply;
-
-                                  logger.debug("The bill token is " + reply);
-
-                                  redisClient.get(Hash_token_key, function (
-                                    err,
-                                    reply
-                                  ) {
-                                    if (!err && reply) {
-                                      var hash_token = reply;
-
-                                      logger.debug(
-                                        "The hash token is " + reply
-                                      );
-
-                                      if (
-                                        bill_token ==
-                                        Encrypt(hash_token, "DuoS123412341234")
-                                      ) {
-                                        if (
-                                          console.consoleUserRoles &&
-                                          user.user_meta &&
-                                          user.user_meta.role &&
-                                          Array.isArray(
-                                            console.consoleUserRoles
-                                          ) &&
-                                          console.consoleUserRoles.indexOf(
-                                            user.user_meta.role
-                                          ) >= 0
-                                        ) {
-                                          GetJWT(
-                                            user,
-                                            claims_arr,
-                                            req.body.clientID,
-                                            "password",
-                                            req,
-                                            function (err, isSuccess, token) {
-                                              if (token) {
-                                                return res.send({
-                                                  state: "login",
-                                                  token: token,
-                                                });
-                                              } else {
-                                                return res.status(401).send({
-                                                  message:
-                                                    "Invalid email and/or password",
-                                                });
-                                              }
-                                            },
-                                            loginKey,
-                                            org.id
-                                          );
-                                        } else {
-                                          return res.status(449).send({
-                                            message:
-                                              "User console request is invalid",
-                                          });
-                                        }
-                                      } else {
-                                        return res.status(449).send({
-                                          message: "Bill token is not match",
-                                        });
-                                      }
-                                    } else {
-                                      logger.error("Hash token failed", err);
-                                      return res.status(449).send({
-                                        message: "Hash token is not found",
-                                      });
-                                    }
-                                  });
-                                } else {
-                                  logger.error("Bill token failed ", err);
-                                  return res.status(449).send({
-                                    message: "Bill token is not found",
-                                  });
-                                }
-                              });
-                            } else {
-                              if (
-                                console.consoleUserRoles &&
-                                user.user_meta &&
-                                user.user_meta.role &&
-                                Array.isArray(console.consoleUserRoles) &&
-                                console.consoleUserRoles.indexOf(
-                                  user.user_meta.role
-                                ) >= 0
-                              ) {
-                                GetJWT(
-                                  user,
-                                  claims_arr,
-                                  req.body.clientID,
-                                  "password",
-                                  req,
-                                  function (err, isSuccess, token) {
-                                    if (token) {
-                                      return res.send({
-                                        state: "login",
-                                        token: token,
-                                      });
-                                    } else {
-                                      return res.status(401).send({
-                                        message:
-                                          "Invalid email and/or password",
-                                      });
-                                    }
-                                  },
-                                  loginKey,
-                                  org.id
-                                );
-                              } else {
-                                return res.status(449).send({
-                                  message: "User console request is invalid",
-                                });
-                              }
-                            }
-                          }
-                        }
-                      }
-                    );
-                  }
-                );
-              } else {
-                user.comparePassword(req.body.password, function (
-                  err,
-                  isMatch
-                ) {
-                  if (!isMatch) {
+              //////////////////////////////////////Dupicated Block A///////////////////////////////////////
+              UserAccount.findOne(
+                { tenant: org.tenant, company: org.id, user: user.username },
+                function (err, account) {
+                  if (err) {
                     return res
                       .status(401)
-                      .send({ message: "Invalid email and/or password" });
+                      .send({ message: "User account verification failed" });
+                  }
+                  if (!account) {
+                    return res
+                      .status(401)
+                      .send({ message: "Invalid user account" });
                   }
 
-                  var claims_arr = ["all_all"];
                   if (
-                    req.body.scope &&
-                    util.isArray(req.body.scope) &&
-                    req.body.scope.length > 0
+                    (config.auth.login_verification === true ||
+                      config.auth.login_verification === "true") &&
+                    account.verified != true
                   ) {
-                    claims_arr = req.body.scope;
+                    return res
+                      .status(401)
+                      .send({ message: "User account is not verified" });
                   }
 
-                  Console.findOne({ consoleName: req.body.console }, function (
-                    err,
-                    console
+                  if (account.active != true) {
+                    return res
+                      .status(401)
+                      .send({ message: "User account is not active" });
+                  }
+
+                  //user = user.toObject();
+                  user._doc.tenant = org.tenant;
+                  user._doc.company = org.id;
+                  user.companyName = org.companyName;
+                  user._doc.multi_login = account.multi_login;
+                  user._doc.user_meta = account.user_meta;
+                  user._doc.app_meta = account.app_meta;
+                  user._doc.user_scopes = account.user_scopes;
+                  user._doc.client_scopes = account.client_scopes;
+                  user._doc.resourceid = account.resource_id;
+                  user._doc.veeryaccount = account.veeryaccount;
+                  user._doc.multi_login = account.multi_login;
+
+                  logger.info(
+                    "config.auth.login_verification --> " +
+                      config.auth.login_verification +
+                      (config.auth.login_verification === true) +
+                      " user.verified --->" +
+                      user.verified +
+                      (user.verified === false) +
+                      " result -->" +
+                      (config.auth.login_verification == true &&
+                        user.verified == false)
+                  );
+
+                  if (
+                    (config.auth.login_verification === true ||
+                      config.auth.login_verification === "true") &&
+                    user.verified === false
                   ) {
-                    if (err) {
-                      return res
-                        .status(449)
-                        .send({ message: "Request console is not valid ..." });
-                    } else {
-                      if (!console) {
-                        return res.status(449).send({
-                          message: "Request console is not valid ...",
-                        });
-                      } else {
-                        if (console.consoleName == "OPERATOR_CONSOLE") {
-                          var bill_token_key =
-                            config.Tenant.activeTenant + "_BILL_TOKEN";
-                          var Hash_token_key =
-                            config.Tenant.activeTenant + "_BILL_HASH_TOKEN";
+                    //res.status(449 ).send({message: 'Activate your account before login'});
+                    crypto.randomBytes(20, function (err, buf) {
+                      var token = buf.toString("hex");
 
-                          logger.info(
-                            "The bill token key is " + bill_token_key
-                          );
-                          logger.info(
-                            "The hash token key is " + Hash_token_key
-                          );
+                      ////////////////////hosted location from config////////////////////
+                      var url = config.auth.ui_host + "#/activate/" + token;
 
-                          redisClient.get(bill_token_key, function (
-                            err,
-                            reply
+                      redisClient.set(
+                        "activate" + ":" + token,
+                        user._id,
+                        function (err, val) {
+                          if (err) {
+                            res.status(404).send({
+                              message: "Create activation token failed",
+                            });
+                          } else {
+                            redisClient.expireat(
+                              "activate" + ":" + token,
+                              parseInt(+new Date() / 1000) + 86400
+                            );
+                            var sendObj = {
+                              company: config.Tenant.activeCompany,
+                              tenant: config.Tenant.activeTenant,
+                            };
+
+                            sendObj.to = user.email.contact;
+                            sendObj.from = "no-reply";
+                            sendObj.template =
+                              "By-User Registration Confirmation";
+                            sendObj.Parameters = {
+                              username: user.username,
+                              created_at: new Date(),
+                              url: url,
+                            };
+
+                            PublishToQueue("EMAILOUT", sendObj);
+                            return res.status(449).send({
+                              message: "Activate your account before login",
+                            });
+                          }
+                        }
+                      );
+                    });
+                  } else {
+                    if (user.auth_mechanism && user.auth_mechanism === "ad") {
+                      ADService.AuthenticateUser(
+                        user.tenant,
+                        user.company,
+                        req.body.userName,
+                        req.body.password,
+                        function (err, auth) {
+                          if (err) {
+                            return res
+                              .status(401)
+                              .send({ message: err.message });
+                          }
+
+                          var claims_arr = ["all_all"];
+                          if (
+                            req.body.scope &&
+                            util.isArray(req.body.scope) &&
+                            req.body.scope.length > 0
                           ) {
-                            if (!err && reply) {
-                              var bill_token = reply;
+                            claims_arr = req.body.scope;
+                          }
 
-                              logger.debug("The bill token is " + reply);
-
-                              redisClient.get(Hash_token_key, function (
-                                err,
-                                reply
-                              ) {
-                                if (!err && reply) {
-                                  var hash_token = reply;
-
-                                  logger.debug("The hash token is " + reply);
-
+                          Console.findOne(
+                            { consoleName: req.body.console },
+                            function (err, console) {
+                              if (err) {
+                                return res.status(449).send({
+                                  message: "Request console is not valid ...",
+                                });
+                              } else {
+                                if (!console) {
+                                  return res.status(449).send({
+                                    message: "Request console is not valid ...",
+                                  });
+                                } else {
                                   if (
-                                    bill_token ==
-                                    Encrypt(hash_token, "DuoS123412341234")
+                                    console.consoleName == "OPERATOR_CONSOLE" ||
+                                    console.consoleName == "ADMIN_CONSOLE"
                                   ) {
+                                    var bill_token_key =
+                                      config.Tenant.activeTenant +
+                                      "_BILL_TOKEN";
+                                    var Hash_token_key =
+                                      config.Tenant.activeTenant +
+                                      "_BILL_HASH_TOKEN";
+
+                                    logger.info(
+                                      "The bill token key is " + bill_token_key
+                                    );
+                                    logger.info(
+                                      "The hash token key is " + Hash_token_key
+                                    );
+
+                                    redisClient.get(bill_token_key, function (
+                                      err,
+                                      reply
+                                    ) {
+                                      if (!err && reply) {
+                                        var bill_token = reply;
+
+                                        logger.debug(
+                                          "The bill token is " + reply
+                                        );
+
+                                        redisClient.get(
+                                          Hash_token_key,
+                                          function (err, reply) {
+                                            if (!err && reply) {
+                                              var hash_token = reply;
+
+                                              logger.debug(
+                                                "The hash token is " + reply
+                                              );
+
+                                              if (
+                                                bill_token ==
+                                                Encrypt(
+                                                  hash_token,
+                                                  "DuoS123412341234"
+                                                )
+                                              ) {
+                                                if (
+                                                  console.consoleUserRoles &&
+                                                  user.user_meta &&
+                                                  user.user_meta.role &&
+                                                  Array.isArray(
+                                                    console.consoleUserRoles
+                                                  ) &&
+                                                  console.consoleUserRoles.indexOf(
+                                                    user.user_meta.role
+                                                  ) >= 0
+                                                ) {
+                                                  GetJWT(
+                                                    user,
+                                                    claims_arr,
+                                                    req.body.clientID,
+                                                    "password",
+                                                    req,
+                                                    function (
+                                                      err,
+                                                      isSuccess,
+                                                      token
+                                                    ) {
+                                                      if (token) {
+                                                        return res.send({
+                                                          state: "login",
+                                                          token: token,
+                                                        });
+                                                      } else {
+                                                        return res
+                                                          .status(401)
+                                                          .send({
+                                                            message:
+                                                              "Invalid email and/or password",
+                                                          });
+                                                      }
+                                                    },
+                                                    loginKey,
+                                                    org.id
+                                                  );
+                                                } else {
+                                                  return res.status(449).send({
+                                                    message:
+                                                      "User console request is invalid",
+                                                  });
+                                                }
+                                              } else {
+                                                return res.status(449).send({
+                                                  message:
+                                                    "Bill token is not match",
+                                                });
+                                              }
+                                            } else {
+                                              logger.error(
+                                                "Hash token failed",
+                                                err
+                                              );
+                                              return res.status(449).send({
+                                                message:
+                                                  "Hash token is not found",
+                                              });
+                                            }
+                                          }
+                                        );
+                                      } else {
+                                        logger.error("Bill token failed ", err);
+                                        return res.status(449).send({
+                                          message: "Bill token is not found",
+                                        });
+                                      }
+                                    });
+                                  } else {
                                     if (
                                       console.consoleUserRoles &&
                                       user.user_meta &&
@@ -941,70 +880,213 @@ module.exports.Login = function (req, res) {
                                           "User console request is invalid",
                                       });
                                     }
-                                  } else {
-                                    return res.status(449).send({
-                                      message: "Bill token is not match",
-                                    });
                                   }
-                                } else {
-                                  logger.error("Hash token failed", err);
-                                  return res.status(449).send({
-                                    message: "Hash token is not found",
-                                  });
                                 }
+                              }
+                            }
+                          );
+                        }
+                      );
+                    } else {
+                      user.comparePassword(req.body.password, function (
+                        err,
+                        isMatch
+                      ) {
+                        if (!isMatch) {
+                          return res.status(401).send({
+                            message: "Invalid email and/or password",
+                          });
+                        }
+
+                        var claims_arr = ["all_all"];
+                        if (
+                          req.body.scope &&
+                          util.isArray(req.body.scope) &&
+                          req.body.scope.length > 0
+                        ) {
+                          claims_arr = req.body.scope;
+                        }
+
+                        Console.findOne(
+                          { consoleName: req.body.console },
+                          function (err, console) {
+                            if (err) {
+                              return res.status(449).send({
+                                message: "Request console is not valid ...",
                               });
                             } else {
-                              logger.error("Bill token failed ", err);
-                              return res
-                                .status(449)
-                                .send({ message: "Bill token is not found" });
-                            }
-                          });
-                        } else {
-                          if (
-                            console.consoleUserRoles &&
-                            user.user_meta &&
-                            user.user_meta.role &&
-                            Array.isArray(console.consoleUserRoles) &&
-                            console.consoleUserRoles.indexOf(
-                              user.user_meta.role
-                            ) >= 0
-                          ) {
-                            GetJWT(
-                              user,
-                              claims_arr,
-                              req.body.clientID,
-                              "password",
-                              req,
-                              function (err, isSuccess, token) {
-                                if (token) {
-                                  return res.send({
-                                    state: "login",
-                                    token: token,
+                              if (!console) {
+                                return res.status(449).send({
+                                  message: "Request console is not valid ...",
+                                });
+                              } else {
+                                if (console.consoleName == "OPERATOR_CONSOLE") {
+                                  var bill_token_key =
+                                    config.Tenant.activeTenant + "_BILL_TOKEN";
+                                  var Hash_token_key =
+                                    config.Tenant.activeTenant +
+                                    "_BILL_HASH_TOKEN";
+
+                                  logger.info(
+                                    "The bill token key is " + bill_token_key
+                                  );
+                                  logger.info(
+                                    "The hash token key is " + Hash_token_key
+                                  );
+
+                                  redisClient.get(bill_token_key, function (
+                                    err,
+                                    reply
+                                  ) {
+                                    if (!err && reply) {
+                                      var bill_token = reply;
+
+                                      logger.debug(
+                                        "The bill token is " + reply
+                                      );
+
+                                      redisClient.get(Hash_token_key, function (
+                                        err,
+                                        reply
+                                      ) {
+                                        if (!err && reply) {
+                                          var hash_token = reply;
+
+                                          logger.debug(
+                                            "The hash token is " + reply
+                                          );
+
+                                          if (
+                                            bill_token ==
+                                            Encrypt(
+                                              hash_token,
+                                              "DuoS123412341234"
+                                            )
+                                          ) {
+                                            if (
+                                              console.consoleUserRoles &&
+                                              user.user_meta &&
+                                              user.user_meta.role &&
+                                              Array.isArray(
+                                                console.consoleUserRoles
+                                              ) &&
+                                              console.consoleUserRoles.indexOf(
+                                                user.user_meta.role
+                                              ) >= 0
+                                            ) {
+                                              GetJWT(
+                                                user,
+                                                claims_arr,
+                                                req.body.clientID,
+                                                "password",
+                                                req,
+                                                function (
+                                                  err,
+                                                  isSuccess,
+                                                  token
+                                                ) {
+                                                  if (token) {
+                                                    return res.send({
+                                                      state: "login",
+                                                      token: token,
+                                                    });
+                                                  } else {
+                                                    return res
+                                                      .status(401)
+                                                      .send({
+                                                        message:
+                                                          "Invalid email and/or password",
+                                                      });
+                                                  }
+                                                },
+                                                loginKey,
+                                                org.id
+                                              );
+                                            } else {
+                                              return res.status(449).send({
+                                                message:
+                                                  "User console request is invalid",
+                                              });
+                                            }
+                                          } else {
+                                            return res.status(449).send({
+                                              message:
+                                                "Bill token is not match",
+                                            });
+                                          }
+                                        } else {
+                                          logger.error(
+                                            "Hash token failed",
+                                            err
+                                          );
+                                          return res.status(449).send({
+                                            message: "Hash token is not found",
+                                          });
+                                        }
+                                      });
+                                    } else {
+                                      logger.error("Bill token failed ", err);
+                                      return res.status(449).send({
+                                        message: "Bill token is not found",
+                                      });
+                                    }
                                   });
                                 } else {
-                                  return res.status(401).send({
-                                    message: "Invalid email and/or password",
-                                  });
+                                  if (
+                                    console.consoleUserRoles &&
+                                    user.user_meta &&
+                                    user.user_meta.role &&
+                                    Array.isArray(console.consoleUserRoles) &&
+                                    console.consoleUserRoles.indexOf(
+                                      user.user_meta.role
+                                    ) >= 0
+                                  ) {
+                                    GetJWT(
+                                      user,
+                                      claims_arr,
+                                      req.body.clientID,
+                                      "password",
+                                      req,
+                                      function (err, isSuccess, token) {
+                                        if (token) {
+                                          return res.send({
+                                            state: "login",
+                                            token: token,
+                                          });
+                                        } else {
+                                          return res.status(401).send({
+                                            message:
+                                              "Invalid email and/or password",
+                                          });
+                                        }
+                                      },
+                                      loginKey,
+                                      org.id
+                                    );
+                                  } else {
+                                    return res.status(449).send({
+                                      message:
+                                        "User console request is invalid",
+                                    });
+                                  }
                                 }
-                              },
-                              loginKey,
-                              org.id
-                            );
-                          } else {
-                            return res.status(449).send({
-                              message: "User console request is invalid",
-                            });
+                              }
+                            }
                           }
-                        }
-                      }
+                        );
+                      });
                     }
-                  });
-                });
-              }
+                  }
+                }
+              );
             }
+          } else {
+            logger.error(`Get current user list failed ${err.message}`);
+            return res.status(401).send({
+              message: "System unable to fine the current user list ...",
+            });
           }
-        );
+        });
       } else {
         return res
           .status(449)
