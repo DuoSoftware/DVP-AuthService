@@ -507,11 +507,13 @@ function GetJWT(user, scopesx, client_id, type, req, done, loginKey, orgId) {
 
           accesstoken.save(function (err, accesstoken) {
             if (err) {
+              logger.error(`Access token save error ${err}`);
               return done(err, false, undefined);
             }
             return done(undefined, true, token);
           });
         } else {
+          logger.error(`Set multiple keys in JWT inner ${err}`);
           return done(err, false, undefined);
         }
       });
