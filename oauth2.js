@@ -20,6 +20,7 @@ var moment = require("moment");
 var redis = require("ioredis");
 var config = require("config");
 var messageFormatter = require("dvp-common-lite/CommonMessageGenerator/ClientMessageJsonFormatter.js");
+const { logger } = require("dvp-common-lite/LogHandler/CommonLogHandler");
 
 var redisip = config.Redis.ip;
 var redisport = config.Redis.port;
@@ -647,11 +648,18 @@ exports.revoketoken = function (req, res, next) {
               //if (config.auth.check_concurrent_limit) {
               redisClient.llen(userTokenListKey).then(function (value) {
                 if (value == 0) {
-                  redisClient.hdel(loginKey, token.userId);
-                }
-
-                if (res) {
-                  res.end(jsonString);
+                  redisClient.hdel(loginKey, token.userId, (err, val) => {
+                    if (err) {
+                      logger.error(`Clear hash is failed ${err}`);
+                    }
+                    if (res) {
+                      res.end(jsonString);
+                    }
+                  });
+                } else {
+                  if (res) {
+                    res.end(jsonString);
+                  }
                 }
               });
               //   } else {

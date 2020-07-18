@@ -412,49 +412,8 @@ function GetJWT(user, scopesx, client_id, type, req, done, loginKey, orgId) {
     });
   } else {
     //multilogin
-    if (
-      multilogin === false ||
-      multilogin === "false" ||
-      (user.multi_login != undefined && user.multi_login === false)
-    ) {
-      //////this operation is heavy - change the code//////////////////////////////////////
-      // redisClient.keys(tokenMap, function (err, res) {
-      //   if (Array.isArray(res)) {
-      //     res.forEach(function (item) {
-      //       //var delRedisKey = "token:iss:"+user.username+":"+item;
-      //       redisClient.del(item, function (err, res) {
-      //         logger.info("JTI deleted -> ", item);
-      //       });
-      //     });
-      //   }
-      // });
 
-      ///////////////////////////////////////////test this function///////////////////////////
-      redisClient.lrange(userTokenListKey, 0, -1, (err, items) => {
-        //redisClient.del(userTokenListKey);
-        if (!err) {
-          var pipeline = redisClient.multi();
-          items.forEach((key) => {
-            pipeline.del(key);
-          });
-          pipeline.exec((err, result) => {
-            if (err) {
-              logger.error(
-                `Delete multiple items on login failed ${err.message}`
-              );
-            }
-            GetJWTInner();
-          });
-        } else {
-          logger.error(`Get list of keys error ${err.message}`);
-          GetJWTInner();
-        }
-      });
-    } else {
-      GetJWTInner();
-    }
-
-    let GetJWTInner = function () {
+    var GetJWTInner = function () {
       var scopes = GetScopes(user, scopesx);
       var redisMulti = redisClient
         .multi()
@@ -518,6 +477,49 @@ function GetJWT(user, scopesx, client_id, type, req, done, loginKey, orgId) {
         }
       });
     };
+
+    if (
+      multilogin === false ||
+      multilogin === "false" ||
+      (user.multi_login != undefined && user.multi_login === false)
+    ) {
+      //////this operation is heavy - change the code//////////////////////////////////////
+      // redisClient.keys(tokenMap, function (err, res) {
+      //   if (Array.isArray(res)) {
+      //     res.forEach(function (item) {
+      //       //var delRedisKey = "token:iss:"+user.username+":"+item;
+      //       redisClient.del(item, function (err, res) {
+      //         logger.info("JTI deleted -> ", item);
+      //       });
+      //     });
+      //   }
+      // });
+
+      ///////////////////////////////////////////test this function///////////////////////////
+      redisClient.lrange(userTokenListKey, 0, -1, (err, items) => {
+        //redisClient.del(userTokenListKey);
+        if (!err) {
+          var pipeline = redisClient.multi();
+          items.forEach((key) => {
+            pipeline.del(key);
+          });
+          pipeline.del(userTokenListKey);
+          pipeline.exec((err, result) => {
+            if (err) {
+              logger.error(
+                `Delete multiple items on login failed ${err.message}`
+              );
+            }
+            GetJWTInner();
+          });
+        } else {
+          logger.error(`Get list of keys error ${err.message}`);
+          GetJWTInner();
+        }
+      });
+    } else {
+      GetJWTInner();
+    }
   }
 }
 

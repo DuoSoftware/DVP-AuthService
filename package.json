@@ -20,12 +20,13 @@
     "crypto-js": "^3.3.0",
     "dvp-common-lite": "^1.0.1",
     "dvp-healthcheck": "^1.0.6",
-    "dvp-mongomodels": "^6.1.3",
+    "dvp-mongomodels": "^6.1.4",
     "ejs": "^3.1.2",
     "errorhandler": "^1.5.1",
     "express": "^4.17.1",
     "express-session": "^1.17.1",
     "flake-idgen": "^1.4.0",
+    "node-uuid": "^1.4.8",
     "oauth2orize": "^1.11.0",
     "oauth2orize-jwt-bearer": "^0.2.0",
     "passport": "^0.4.1",
@@ -39,7 +40,6 @@
     "restify-jwt": "^0.4.0",
     "stringformat": "0.0.5",
     "util": "^0.12.3",
-    "validator": "^12.2.0",
-    "node-uuid": "^1.4.8"
+    "validator": "^12.2.0"
   }
 }
