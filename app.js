@@ -62,6 +62,7 @@ app.get('/dialog/authorize', oauth2.authorization);
 app.post('/dialog/authorize/decision', oauth2.decision);
 app.post('/oauth/token', oauth2.token);
 app.delete('/oauth/token/revoke/:jti', jwt({ secret: secret.Secret }), oauth2.revoketoken);
+app.delete('/oauth/token/forcedLogoff/:userid', jwt({ secret: secret.Secret }), oauth2.forcedLogoff);
 
 app.post('/auth/login', Login.Login);
 app.post('/auth/logintest', Login.LoginTest);
