@@ -924,7 +924,8 @@ module.exports.Login = function (req, res) {
                                   message: "Request console is not valid ...",
                                 });
                               } else {
-                                if (console.consoleName == "OPERATOR_CONSOLE") {
+                                if (console.consoleName == "OPERATOR_CONSOLE" 
+                                      || console.consoleName == "AGENT_CONSOLE") {
                                   var bill_token_key =
                                     config.Tenant.activeTenant + "_BILL_TOKEN";
                                   var Hash_token_key =
