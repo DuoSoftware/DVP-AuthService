@@ -606,9 +606,9 @@ exports.token = [
 exports.forcedLogoff = function (req, res, next) {
 
     let username = req.params.userid;
-    let console = req.body.console;
-    let tenant = req.body.tenant;
-    let orgId = req.body.orgId;
+    let console = req.query.console;
+    let tenant = req.query.tenant;
+    let orgId = req.query.orgId;
 
     User.findOne({username: username}, function (
         err,
