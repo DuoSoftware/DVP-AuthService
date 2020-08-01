@@ -575,9 +575,12 @@ module.exports.Login = function (req, res) {
             .send({ message: "Please set concurrent access limits" });
         }
 
-        var packageAccessLimit = org.concurrentAccessLimits.find(
-          (al) => al.accessType == req.body.console
-        );
+        var packageAccessLimit;
+        if (org.concurrentAccessLimits) {
+          packageAccessLimit = org.concurrentAccessLimits.find(
+            (al) => al.accessType == req.body.console
+          );
+        }
 
         // remove async await
         redisClient.hlen(loginKey, (err, currentConcurrentUsers) => {
