@@ -49,15 +49,15 @@ module.exports = {
 
     ui_host: "http://localhost:3000/",
     agent_host: "http://localhost:3000/",
-    check_concurrent_limit: true,
+    check_concurrent_limit: false,
     multi_login: false,
   },
   Redis: {
     mode: "instance", //instance, cluster, sentinel
-    ip: "13.59.52.179",
+    ip: "",
     port: 6379,
     user: "",
-    password: "DuoS123",
+    password: "",
     sentinels: {
       hosts: "SENTNELS_URL",
       port: 16389,
@@ -66,10 +66,10 @@ module.exports = {
   },
   Security: {
     mode: "instance", //instance, cluster, sentinel
-    ip: "13.59.52.179",
+    ip: "",
     port: 6379,
     user: "",
-    password: "DuoS123",
+    password: "",
     sentinels: {
       hosts: "SENTNELS_URL",
       port: 16389,
@@ -85,19 +85,19 @@ module.exports = {
     version: "1.0.0.0",
   },
   RabbitMQ: {
-    ip: "13.59.52.179",
+    ip: "",
     port: 5672,
-    user: "duo ",
-    password: "DuoS123",
+    user: "",
+    password: "",
     vhost: "/",
   },
   Mongo: {
-    ip: "13.59.52.179",
+    ip: "",
     port: "27017",
     dbname: "dvpdb",
-    password: "DuoS123",
-    user: "duo",
-    type: "mongodb",
+    password: "",
+    user: "",
+    type: "mongodb+srv",
   },
   Services: {
     accessToken: "TOKEN",
@@ -125,7 +125,7 @@ module.exports = {
     notificationServiceHost: "notificationservice.app1.veery.cloud",
     notificationServicePort: "8089",
     notificationServiceVersion: "1.0.0.0",
-    dynamicPort: false,
+    dynamicPort: true,
   },
 
   Tenant: {
