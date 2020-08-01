@@ -727,13 +727,13 @@ function AssignContextAndCloudEndUserToOrganisation(company, tenant, domain) {
     cloudEndUserUrl = util.format(
       "http://%s:%s/DVP/API/%s/CloudConfiguration/CloudEndUser",
       config.Services.clusterconfigserviceHost,
-      config.Services.sipuserendpointservicePort,
+      config.Services.clusterconfigservicePort,
       config.Services.clusterconfigserviceVersion
     );
     contextUrl = util.format(
       "http://%s:%s/DVP/API/%s/SipUser/Context",
       config.Services.sipuserendpointserviceHost,
-      config.Services.clusterconfigservicePort,
+      config.Services.sipuserendpointservicePort,
       config.Services.sipuserendpointserviceVersion
     );
     transferCodesUrl = util.format(
