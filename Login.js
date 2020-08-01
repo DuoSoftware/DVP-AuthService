@@ -565,8 +565,10 @@ module.exports.Login = function (req, res) {
         var loginKey = `tenant:${config.Tenant.activeTenant}:company:${org.id}:${req.body.console}:logins`;
 
         if (
-          (config.auth.check_concurrent_limit && !org.concurrentAccessLimits) ||
-          org.concurrentAccessLimits.length <= 0
+          config.auth.check_concurrent_limit &&
+          (!org.concurrentAccessLimits ||
+            (org.concurrentAccessLimits &&
+              org.concurrentAccessLimits.length <= 0))
         ) {
           return res
             .status(401)
@@ -924,8 +926,10 @@ module.exports.Login = function (req, res) {
                                   message: "Request console is not valid ...",
                                 });
                               } else {
-                                if (console.consoleName == "OPERATOR_CONSOLE" 
-                                      || console.consoleName == "AGENT_CONSOLE") {
+                                if (
+                                  console.consoleName == "OPERATOR_CONSOLE" ||
+                                  console.consoleName == "AGENT_CONSOLE"
+                                ) {
                                   var bill_token_key =
                                     config.Tenant.activeTenant + "_BILL_TOKEN";
                                   var Hash_token_key =
