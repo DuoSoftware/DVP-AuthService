@@ -12,6 +12,7 @@
   "dependencies": {
     "activedirectory": "^0.7.2",
     "amqp": "^0.2.7",
+    "array-unique": "^0.3.2",
     "biguint-format": "^1.0.2",
     "config": "^3.3.1",
     "connect-ensure-login": "^0.1.1",
