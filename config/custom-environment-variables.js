@@ -4,7 +4,7 @@ module.exports = {
     port: "SYS_RABBITMQ_PORT",
     user: "SYS_RABBITMQ_USER",
     password: "SYS_RABBITMQ_PASSWORD",
-    vhost: "SYS_RABBITMQ_VHOST"
+    vhost: "SYS_RABBITMQ_VHOST",
   },
 
   Redis: {
@@ -16,8 +16,8 @@ module.exports = {
     sentinels: {
       hosts: "SYS_REDIS_SENTINEL_HOSTS",
       port: "SYS_REDIS_SENTINEL_PORT",
-      name: "SYS_REDIS_SENTINEL_NAME"
-    }
+      name: "SYS_REDIS_SENTINEL_NAME",
+    },
   },
 
   Security: {
@@ -29,8 +29,8 @@ module.exports = {
     sentinels: {
       hosts: "SYS_REDIS_SENTINEL_HOSTS",
       port: "SYS_REDIS_SENTINEL_PORT",
-      name: "SYS_REDIS_SENTINEL_NAME"
-    }
+      name: "SYS_REDIS_SENTINEL_NAME",
+    },
   },
 
   Mongo: {
@@ -39,7 +39,7 @@ module.exports = {
     dbname: "SYS_MONGO_DB",
     password: "SYS_MONGO_PASSWORD",
     user: "SYS_MONGO_USER",
-    replicaset: "SYS_MONGO_REPLICASETNAME"
+    replicaset: "SYS_MONGO_REPLICASETNAME",
   },
 
   auth: {
@@ -66,7 +66,8 @@ module.exports = {
     recaptcha_key: "GOOGLE_RECAPTCHA_KEY",
 
     ui_host: "SYS_APP_UI_HOST",
-    agent_host: "SYS_APP_AGENT_UI_HOST"
+    agent_host: "SYS_APP_AGENT_UI_HOST",
+    check_concurrent_limit: "SYS_CHECK_CONCURRENT_LOGIN",
   },
 
   Host: {
@@ -74,7 +75,7 @@ module.exports = {
     vdomain: "LB_FRONTEND",
     domain: "HOST_NAME",
     port: "HOST_USERSERVICE_PORT",
-    version: "HOST_VERSION"
+    version: "HOST_VERSION",
   },
 
   Services: {
@@ -82,6 +83,15 @@ module.exports = {
     resourceServiceHost: "SYS_RESOURCESERVICE_HOST",
     resourceServicePort: "SYS_RESOURCESERVICE_PORT",
     resourceServiceVersion: "SYS_RESOURCESERVICE_VERSION",
+    ruleserviceHost: "SYS_RULESERVICE_HOST",
+    ruleservicePort: "SYS_RULESERVICE_PORT",
+    ruleserviceVersion: "SYS_RULESERVICE_VERSION",
+    fileserviceHost: "SYS_FILESERVICE_HOST",
+    fileservicePort: "SYS_FILESERVICE_PORT",
+    fileserviceVersion: "SYS_FILESERVICE_VERSION",
+    liteticketHost: "SYS_LITETICKET_HOST",
+    liteticketPort: "SYS_LITETICKET_PORT",
+    liteticketVersion: "SYS_LITETICKET_VERSION",
     sipuserendpointserviceHost: "SYS_SIPUSERENDPOINTSERVICE_HOST",
     sipuserendpointservicePort: "SYS_SIPUSERENDPOINTSERVICE_PORT",
     sipuserendpointserviceVersion: "SYS_SIPUSERENDPOINTSERVICE_VERSION",
@@ -90,14 +100,14 @@ module.exports = {
     clusterconfigserviceVersion: "SYS_CLUSTERCONFIG_VERSION",
     billingserviceHost: "SYS_BILLINGSERVICE_HOST",
     billingservicePort: "SYS_BILLINGSERVICE_PORT",
-    billingserviceVersion: "SYS_BILLINGSERVICE_VERSION"
+    billingserviceVersion: "SYS_BILLINGSERVICE_VERSION",
   },
 
   Tenant: {
-    activeTenant: "ACTIVE_TENANT"
+    activeTenant: "ACTIVE_TENANT",
   },
 
   ActiveDirectory: {
-    groupName: "AD_GROUPNAME"
-  }
+    groupName: "AD_GROUPNAME",
+  },
 };

@@ -15,8 +15,6 @@ var Tenant = require("dvp-mongomodels/model/Tenant").Tenant;
 var UserAccount = require("dvp-mongomodels/model/UserAccount");
 
 var restClientHandler = require("./RestClient.js");
-var businessUnitService = require("./BusinessUnitService.js");
-var externalUserService = require("./ExternalUserService.js");
 
 var redisip = config.Redis.ip;
 var redisport = config.Redis.port;
@@ -175,7 +173,6 @@ var AssignPackageToOrganisationLib = function (
   tenant,
   packageName,
   requestedUser,
-  addDefaultData,
   callback
 ) {
   logger.debug("DVP-UserService.AssignPackageToOrganisation Internal method ");
@@ -235,10 +232,7 @@ var AssignPackageToOrganisationLib = function (
                         domainData =
                           org.companyName + "." + org.tenantRef.rootDomain;
 
-                        if (
-                          org.packages.indexOf(packageName) == -1 ||
-                          multipleAllowed(vPackage.navigationType)
-                        ) {
+                        if (org.packages.indexOf(packageName) == -1) {
                           var billingObj = {
                             userInfo: requestedUser,
                             companyInfo: org,
@@ -259,12 +253,7 @@ var AssignPackageToOrganisationLib = function (
                             "veeryPackage.navigationType",
                             vPackage.navigationType
                           );
-                          if (
-                            typeExist &&
-                            !multipleAllowed(vPackage.navigationType)
-                          ) {
-                            // type exists or navigationType is not user
-
+                          if (typeExist) {
                             if (
                               typeExist.veeryPackage.price <= vPackage.price
                             ) {
@@ -311,7 +300,6 @@ var AssignPackageToOrganisationLib = function (
                                           vPackage,
                                           org,
                                           userAccount._id,
-                                          addDefaultData,
                                           function (jsonResponse) {
                                             callback(jsonResponse);
                                           }
@@ -349,7 +337,7 @@ var AssignPackageToOrganisationLib = function (
                           } else {
                             org.updated_at = Date.now();
                             org.packages.push(packageName);
-                            //org.packages = UniqueArray(org.packages);
+                            org.packages = UniqueArray(org.packages);
                             org.packageDetails.push({
                               veeryPackage: vPackage._id,
                               buyDate: Date.now(),
@@ -379,7 +367,6 @@ var AssignPackageToOrganisationLib = function (
                                           vPackage,
                                           org,
                                           userAccount._id,
-                                          addDefaultData,
                                           function (jsonResponse) {
                                             callback(jsonResponse);
                                           }
@@ -413,7 +400,6 @@ var AssignPackageToOrganisationLib = function (
                                 vPackage,
                                 org,
                                 userAccount._id,
-                                addDefaultData,
                                 function (jsonResponse) {
                                   callback(jsonResponse);
                                 }
@@ -480,7 +466,6 @@ var SetPackageToOrganisation = function (
   vPackage,
   org,
   userAccountId,
-  addDefaultData,
   callback
 ) {
   var jsonString;
@@ -495,16 +480,9 @@ var SetPackageToOrganisation = function (
       if (existingSpaceLimit && existingSpaceLimit.length > 0) {
         if (existingSpaceLimit[0].spaceLimit < sLimit.spaceLimit) {
           existingSpaceLimit[0].spaceLimit = sLimit.spaceLimit;
-          SetCompanySpaceLimit(
-            tenant,
-            company,
-            sLimit.spaceType,
-            existingSpaceLimit[0]
-          );
         }
       } else {
         spaceLimitsToAdd.push(sLimit);
-        SetCompanySpaceLimit(tenant, company, sLimit.spaceType, sLimit);
       }
     });
 
@@ -527,12 +505,7 @@ var SetPackageToOrganisation = function (
           count++;
           var cal = org.consoleAccessLimits[j];
           if (cal.accessType == vCal.accessType) {
-            if (vPackage.navigationType.toLowerCase() === "user") {
-              // if user package is bought increment access limit, no replacement
-              org.consoleAccessLimits[j].accessLimit += tempCal.accessLimit;
-            } else {
-              org.consoleAccessLimits[j].accessLimit = tempCal.accessLimit;
-            }
+            org.consoleAccessLimits[j].accessLimit = tempCal.accessLimit;
             break;
           }
           if (count == org.consoleAccessLimits.length) {
@@ -544,9 +517,6 @@ var SetPackageToOrganisation = function (
           }
         }
       } else {
-        if (vCal.accessType == "admin") {
-          tempCal.currentAccess.push(org.ownerId);
-        }
         org.consoleAccessLimits.push(tempCal);
       }
     }
@@ -569,17 +539,6 @@ var SetPackageToOrganisation = function (
 
         if (eUserScope) {
           if (
-            vPackage.navigationType.toLowerCase() === "user" &&
-            vPackage.consoles.includes("AGENT_CONSOLE")
-          ) {
-            if (
-              eUserScope.scopeName === "ardsresource" ||
-              eUserScope.scopeName === "sipuser"
-            ) {
-              // increment ards and sip resource limits if a user agent package is bought
-              eUserScope.accessLimit += 1;
-            }
-          } else if (
             eUserScope.accessLimit != -1 &&
             eUserScope.accessLimit < scopes.accessLimit
           ) {
@@ -608,26 +567,9 @@ var SetPackageToOrganisation = function (
         );
       } else {
         // UpdateUser(org.ownerId, vPackage);
-        if (vPackage.navigationType.toLowerCase() !== "user") {
-          UpdateUser(userAccountId, vPackage);
-          AssignTaskToOrganisation(company, tenant, vPackage.veeryTask);
-          if (addDefaultData) {
-            AssignContextAndCloudEndUserToOrganisation(
-              company,
-              tenant,
-              domainData
-            );
-            AddDefaultRule(company, tenant);
-            AddDefaultTicketTypes(company, tenant);
-            AddDefaultFileCategories(company, tenant);
-            businessUnitService.AddDefaultBusinessUnit(
-              company,
-              tenant,
-              org.ownerRef.id
-            );
-            externalUserService.AddDefaultAccessibleFields(company, tenant);
-          }
-        }
+        UpdateUser(userAccountId, vPackage);
+        AssignTaskToOrganisation(company, tenant, vPackage.veeryTask);
+        AssignContextAndCloudEndUserToOrganisation(company, tenant, domainData);
         jsonString = messageFormatter.FormatMessage(
           err,
           "Assign Package to Organisation Successful",
@@ -727,13 +669,13 @@ function AssignContextAndCloudEndUserToOrganisation(company, tenant, domain) {
     cloudEndUserUrl = util.format(
       "http://%s:%s/DVP/API/%s/CloudConfiguration/CloudEndUser",
       config.Services.clusterconfigserviceHost,
-      config.Services.clusterconfigservicePort,
+      config.Services.sipuserendpointservicePort,
       config.Services.clusterconfigserviceVersion
     );
     contextUrl = util.format(
       "http://%s:%s/DVP/API/%s/SipUser/Context",
       config.Services.sipuserendpointserviceHost,
-      config.Services.sipuserendpointservicePort,
+      config.Services.clusterconfigservicePort,
       config.Services.sipuserendpointserviceVersion
     );
     transferCodesUrl = util.format(
@@ -802,181 +744,6 @@ function AssignContextAndCloudEndUserToOrganisation(company, tenant, domain) {
       );
     }
   });
-}
-
-function AddDefaultRule(company, tenant) {
-  var ruleserviceUrl = util.format(
-    "http://%s/DVP/API/%s/CallRuleApi/DefaultRule",
-    config.Services.ruleserviceHost,
-    config.Services.ruleserviceVersion
-  );
-
-  if (
-    config.Services.dynamicPort ||
-    validator.isIP(config.Services.ruleserviceHost)
-  ) {
-    ruleserviceUrl = util.format(
-      "http://%s:%s/DVP/API/%s/CallRuleApi/DefaultRule",
-      config.Services.ruleserviceHost,
-      config.Services.ruleservicePort,
-      config.Services.ruleserviceVersion
-    );
-  }
-  var compInfo = util.format("%d:%d", tenant, company);
-  restClientHandler.DoPost(compInfo, ruleserviceUrl, null, function (
-    err,
-    res1,
-    result
-  ) {
-    if (err) {
-      console.log(err);
-    } else {
-      console.log("Add default rule result : ", result);
-    }
-  });
-}
-
-function AddDefaultFileCategories(company, tenant) {
-  var arr = {
-    FileCategories: [
-      {
-        Category: "CONVERSATION",
-        Owner: "user",
-        Visible: true,
-        Encripted: true,
-      },
-      { Category: "VOICEMAIL", Owner: "user", Visible: true, Encripted: false },
-      { Category: "HOLDMUSIC", Owner: "user", Visible: true, Encripted: false },
-      { Category: "IVRCLIPS", Owner: "user", Visible: true, Encripted: false },
-      {
-        Category: "TICKET_ATTACHMENTS",
-        Owner: "user",
-        Visible: true,
-        Encripted: false,
-      },
-      { Category: "REPORTS", Owner: "user", Visible: true, Encripted: false },
-      {
-        Category: "PROFILE_PICTURES",
-        Owner: "user",
-        Visible: true,
-        Encripted: false,
-      },
-      {
-        Category: "NOTICE_ATTACHMENTS",
-        Owner: "user",
-        Visible: true,
-        Encripted: false,
-      },
-      {
-        Category: "CHAT_ATTACHMENTS",
-        Owner: "user",
-        Visible: true,
-        Encripted: false,
-      },
-      { Category: "FAX", Owner: "user", Visible: true, Encripted: false },
-      {
-        Category: "EMAIL_ATTACHMENTS",
-        Owner: "user",
-        Visible: true,
-        Encripted: false,
-      },
-      {
-        Category: "AGENT_GREETINGS",
-        Owner: "user",
-        Visible: true,
-        Encripted: false,
-      },
-    ],
-  };
-
-  var fileserviceUrl = util.format(
-    "http://%s/DVP/API/%s/FileService/FileCategory/Bulk",
-    config.Services.fileserviceHost,
-    config.Services.fileserviceVersion
-  );
-
-  if (
-    config.Services.dynamicPort ||
-    validator.isIP(config.Services.fileserviceHost)
-  ) {
-    fileserviceUrl = util.format(
-      "http://%s:%s/DVP/API/%s/FileService/FileCategory/Bulk",
-      config.Services.fileserviceHost,
-      config.Services.fileservicePort,
-      config.Services.fileserviceVersion
-    );
-  }
-  var compInfo = util.format("%d:%d", tenant, company);
-  restClientHandler.DoPost(compInfo, fileserviceUrl, arr, function (
-    err,
-    res1,
-    result
-  ) {
-    if (err) {
-      console.log(err);
-    } else {
-      console.log("Add file categories result : ", result);
-    }
-  });
-}
-
-function AddDefaultTicketTypes(company, tenant) {
-  var ticketserviceUrl = util.format(
-    "http://%s/DVP/API/%s/TicketTypes",
-    config.Services.liteticketHost,
-    config.Services.liteticketVersion
-  );
-
-  if (
-    config.Services.dynamicPort ||
-    validator.isIP(config.Services.liteticketHost)
-  ) {
-    ticketserviceUrl = util.format(
-      "http://%s:%s/DVP/API/%s/TicketTypes",
-      config.Services.liteticketHost,
-      config.Services.liteticketPort,
-      config.Services.liteticketVersion
-    );
-  }
-  var compInfo = util.format("%d:%d", tenant, company);
-
-  var obj = {
-    custom_types: [],
-  };
-  restClientHandler.DoPost(compInfo, ticketserviceUrl, obj, function (
-    err,
-    res1,
-    result
-  ) {
-    if (err) {
-      console.log(err);
-    } else {
-      console.log("Add default ticket types : ", result);
-    }
-  });
-}
-
-function SetCompanySpaceLimit(tenant, company, spaceType, limit) {
-  var spaceLimitKey = util.format(
-    "SpaceLimit:%d:%d:%s",
-    tenant,
-    company,
-    spaceType
-  );
-  client.set(spaceLimitKey, JSON.stringify(limit), function (err, result) {
-    if (err) {
-      logger.error("Set Company space limit in redis failed: " + err);
-    } else {
-      logger.error("Set Company space limit in redis success.");
-    }
-  });
-}
-
-function multipleAllowed(navigationType) {
-  var allowedNavTypes = ["user", "license"];
-
-  if (allowedNavTypes.indexOf(navigationType.toLowerCase()) == -1) return false;
-  else return true;
 }
 
 function GetUserScopes(scopes) {
@@ -1194,7 +961,7 @@ function UpdateUser(userAccountId, vPackage) {
             var eUserScope = FilterObjFromArray(
               userAccount.user_scopes,
               "scope",
-              uScopes[i].scope
+              uScopes[i]
             );
             if (eUserScope) {
               if (
@@ -1364,6 +1131,10 @@ function CreateOrganisationStanAlone(user, companyname, timezone, callback) {
                 updated_at: Date.now(),
                 timeZone: timezone,
               });
+              // var usr = {};
+              // usr.company = cid;
+              // usr.Active = true;
+              // usr.updated_at = Date.now();
 
               org.save(function (err, org) {
                 if (err) {
@@ -1386,7 +1157,6 @@ function CreateOrganisationStanAlone(user, companyname, timezone, callback) {
                       { scope: "console", read: true },
                       { scope: "myNavigation", read: true },
                       { scope: "myUserProfile", read: true },
-                      { scope: "wallet", read: true, write: true },
                     ],
                     created_at: Date.now(),
                     updated_at: Date.now(),
@@ -1399,33 +1169,32 @@ function CreateOrganisationStanAlone(user, companyname, timezone, callback) {
                       callback(err, undefined);
                     } else {
                       //rUser.company = cid;
-                      if (account && org) {
-                        user._doc.tenant = org.tenant;
-                        user._doc.company = org.id;
-                        user._doc.companyName = org.companyName;
-                        user._doc.multi_login = account.multi_login;
-                        user._doc.user_meta = account.user_meta;
-                        user._doc.app_meta = account.app_meta;
-                        user._doc.user_scopes = account.user_scopes;
-                        user._doc.client_scopes = account.client_scopes;
-                        user._doc.resourceid = account.resource_id;
-                        user._doc.veeryaccount = account.veeryaccount;
-                        user._doc.multi_login = account.multi_login;
-                      }
-
                       AssignPackageToOrganisationLib(
                         cid,
                         Tenants.id,
                         "BASIC",
                         user,
-                        true,
                         function (jsonString) {
                           console.log(jsonString);
-                          callback(undefined, user);
                         }
                       );
+                      callback(undefined, user);
                     }
                   });
+
+                  // User.findOneAndUpdate({username: user.username}, usr, function (err, rUser) {
+                  //     if (err) {
+                  //         org.remove(function (err) {
+                  //         });
+                  //         callback(err, undefined);
+                  //     } else {
+                  //         rUser.company = cid;
+                  //         AssignPackageToOrganisationLib(cid, Tenants.id, "BASIC", rUser,function(jsonString){
+                  //             console.log(jsonString);
+                  //         });
+                  //         callback(undefined, rUser);
+                  //     }
+                  // });
                 }
               });
             } else {
