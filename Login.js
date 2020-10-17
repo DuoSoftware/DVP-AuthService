@@ -585,9 +585,9 @@ module.exports.Login = function (req, res) {
         redisClient.hlen(loginKey, (err, currentConcurrentUsers) => {
           if (!err) {
             if (
+              org.ownerId != user.username &&
               config.auth.check_concurrent_limit &&
-              packageAccessLimit &&
-              currentConcurrentUsers >= packageAccessLimit.accessLimit
+              (packageAccessLimit ? currentConcurrentUsers >= packageAccessLimit.accessLimit: true)
             ) {
               return res.status(401).send({
                 message:
