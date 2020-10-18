@@ -603,6 +603,99 @@ exports.token = [
   server.errorHandler(),
 ];
 
+exports.listActiveLogins = function (req, res, next) {
+  let tenant = req.query.tenant;
+  let orgId = req.query.orgId;
+  let console = req.query.console;
+  var loginKey = `tenant:${tenant}:company:${orgId}:${console}:logins`;
+
+  let jsonString = messageFormatter.FormatMessage(undefined, "List Active Logins failed", false, undefined);
+  redisClient.hgetall(loginKey, (err, items) => {
+    if (!err) {
+      // items.forEach((jti) => {
+      //   var redisKey = "token:iss:" + iss + ":" + jti;
+      //   redis_op.del(redisKey, redis.print);
+      // });
+      jsonString = messageFormatter.FormatMessage(undefined, JSON.stringify(items), true, undefined);
+      if (res) {
+        res.end(jsonString);
+      }
+    } else {
+      logger.error(`Get list of keys error ${err.message}`);
+
+      if (res) {
+        jsonString = messageFormatter.FormatMessage(
+            err,
+            "List Active Logins failed",
+            false,
+            undefined
+        );
+        return res.status(401).send(jsonString);
+      }
+    }
+  });
+}
+
+exports.forcedLogoffById = function (req, res, next) {
+
+  let userId = req.params.userid;
+  let username = req.query.username;
+  let console = req.query.console;
+  let tenant = req.query.tenant;
+  let orgId = req.query.orgId;
+  let jsonString = messageFormatter.FormatMessage(undefined, "Forced logoff failed", false, undefined);
+
+  var loginKey = `tenant:${tenant}:company:${orgId}:${console}:logins`;
+  var userTokenListKey = loginKey + ":" + userId;
+  const iss = username;
+  redisClient.lrange(userTokenListKey, 0, -1, (err, items) => {
+    if (!err) {
+      var redis_op = redisClient.multi();
+      items.forEach((jti) => {
+        var redisKey = "token:iss:" + iss + ":" + jti;
+        redis_op.del(redisKey, redis.print);
+      });
+      redis_op.hdel(loginKey, userId);
+      redis_op.del(userTokenListKey);
+      redis_op.exec((err, result) => {
+        if (err) {
+          logger.error(
+              `Delete multiple items on Forced logoff failed ${err.message}`
+          );
+          jsonString = messageFormatter.FormatMessage(
+              err,
+              "Forced logoff failed",
+              false,
+              undefined
+          );
+          return res.status(401).send(jsonString);
+        } else {
+          items.forEach(async (jti) => {
+            await accessToken.findOneAndUpdate({jti: jti}, {logged_out_at: Date.now()});
+          });
+          jsonString = messageFormatter.FormatMessage(undefined, "Forced logoff successful", true, undefined);
+        }
+
+        if (res) {
+          res.end(jsonString);
+        }
+      });
+    } else {
+      logger.error(`Get list of keys error ${err.message}`);
+
+      if (res) {
+        jsonString = messageFormatter.FormatMessage(
+            err,
+            "Forced logoff failed",
+            false,
+            undefined
+        );
+        return res.status(401).send(jsonString);
+      }
+    }
+  });
+}
+
 exports.forcedLogoff = function (req, res, next) {
 
     let username = req.params.userid;
