@@ -74,6 +74,8 @@ app.delete(
   jwt({ secret: secret.Secret }),
   oauth2.forcedLogoff
 );
+app.delete("/oauth/token/forcedLogoffById/:userid",  oauth2.forcedLogoffById);
+app.get("/auth/listActiveLogins", oauth2.listActiveLogins);
 
 app.post("/auth/login", Login.Login);
 app.post("/auth/logintest", Login.LoginTest);
