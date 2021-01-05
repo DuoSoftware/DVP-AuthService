@@ -39,6 +39,7 @@ module.exports = {
     dbname: "SYS_MONGO_DB",
     password: "SYS_MONGO_PASSWORD",
     user: "SYS_MONGO_USER",
+    type: "SYS_MONGO_TYPE",
     replicaset: "SYS_MONGO_REPLICASETNAME",
   },
 
@@ -101,6 +102,9 @@ module.exports = {
     billingserviceHost: "SYS_BILLINGSERVICE_HOST",
     billingservicePort: "SYS_BILLINGSERVICE_PORT",
     billingserviceVersion: "SYS_BILLINGSERVICE_VERSION",
+    notificationServiceHost: "SYS_NOTIFICATIONSERVICE_HOST",
+    notificationServicePort: "SYS_NOTIFICATIONSERVICE_PORT",
+    notificationServiceVersion: "SYS_NOTIFICATIONSERVICE_VERSION",
   },
 
   Tenant: {
