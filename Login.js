@@ -362,7 +362,8 @@ function GetScopes(user, claims) {
 function GetJWT(user, scopesx, client_id, type, req, done, loginKey, orgId) {
   var jti = uuid.v4();
   var secret = uuid.v4();
-  var expin = moment().add(7, "days").unix();
+  var expin = moment().add(1, "days").unix();
+  var exp_seconds = 24 * 60 * 60;
   var redisKey = "token:iss:" + user.username + ":" + jti;
   var claimsKey = "claims:iss:" + user.username + ":" + jti;
   var tokenMap = "token:iss:" + user.username + ":*";
@@ -416,8 +417,8 @@ function GetJWT(user, scopesx, client_id, type, req, done, loginKey, orgId) {
       var scopes = GetScopes(user, scopesx);
       var redisMulti = redisClient
         .multi()
-        .set(redisKey, secret, "ex", expin)
-        .set(claimsKey, JSON.stringify(scopes), "ex", expin);
+        .set(redisKey, secret, "ex", exp_seconds)
+        .set(claimsKey, JSON.stringify(scopes), "ex", exp_seconds);
 
       //if (loginKey && userTokenListKey && config.auth.check_concurrent_limit) {
       redisMulti = redisMulti
