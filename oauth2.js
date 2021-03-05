@@ -792,10 +792,12 @@ exports.revoketoken = function (req, res, next) {
           var loginKey = `tenant:${config.Tenant.activeTenant}:company:${token.orgId}:${token.console}:logins`;
           var userTokenListKey = loginKey + ":" + token.userId;
           var redisKey = "token:iss:" + iss + ":" + id;
+          var claimsKey = "claims:iss:" + iss + ":" + id;
 
           redisClient
             .multi()
             .del(redisKey, redis.print)
+            .del(claimsKey, redis.print)
             .lrem(userTokenListKey, 0, id)
             .exec(function (err, result) {
               if (!err) {
