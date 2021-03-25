@@ -392,6 +392,38 @@ var SetPackageToOrganisation = function(company, tenant, domainData, vPackage, o
         }
     }
 
+    //adding concurrent access 
+    if (vPackage.concurrentAccessLimit && vPackage.concurrentAccessLimit.length > 0) {
+        for (var i = 0; i < vPackage.concurrentAccessLimit.length; i++) {
+            var vCal = vPackage.concurrentAccessLimit[i];
+            var tempCal = {
+                accessType: vCal.accessType,
+                accessLimit: vCal.accessLimit,
+                currentAccess: []
+            };
+            var count = 0;
+            if (org.concurrentAccessLimit.length > 0) {
+                for (var j = 0; j < org.concurrentAccessLimit.length; j++) {
+                    count++;
+                    var cal = org.concurrentAccessLimit[j];
+                    if (cal.accessType == vCal.accessType) {
+                        org.concurrentAccessLimit[j].accessLimit = tempCal.accessLimit;
+                        break;
+                    }
+                    if (count == org.concurrentAccessLimit.length) {
+                        org.concurrentAccessLimit.push(tempCal);
+
+                        if (vCal.accessType == "admin") {
+                            tempCal.currentAccess.push(org.ownerId);
+                        }
+                    }
+                }
+            } else {
+                org.concurrentAccessLimit.push(tempCal);
+            }
+        }
+    }
+
     var er = ExtractResources(vPackage.resources);
     er.on('endExtractResources', function (userScopes) {
         if (userScopes) {
@@ -839,6 +871,7 @@ function CreateOrganisationStanAlone(user, companyname, timezone, callback) {
                                 tenant: Tenants.id,
                                 packages: [],
                                 consoleAccessLimits: [],
+                                concurrentAccessLimit:[],
                                 tenantRef: Tenants._id,
                                 ownerRef: user._id,
                                 created_at: Date.now(),
