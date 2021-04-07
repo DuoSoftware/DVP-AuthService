@@ -95,7 +95,7 @@ module.exports = {
     dbname: "dvpdb",
     password: "DuoS123",
     user: "duo",
-    type: "mongodb+srv",
+    type: "mongodb",
   },
   Services: {
     accessToken: "TOKEN",
