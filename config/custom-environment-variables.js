@@ -40,6 +40,7 @@ module.exports = {
     password: "SYS_MONGO_PASSWORD",
     user: "SYS_MONGO_USER",
     replicaset: "SYS_MONGO_REPLICASETNAME",
+    type: "SYS_MONGO_TYPE",
   },
 
   auth: {
