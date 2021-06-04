@@ -102,6 +102,9 @@ module.exports = {
     billingserviceHost: "SYS_BILLINGSERVICE_HOST",
     billingservicePort: "SYS_BILLINGSERVICE_PORT",
     billingserviceVersion: "SYS_BILLINGSERVICE_VERSION",
+    notificationServiceHost: "SYS_NOTIFICATIONSERVICE_HOST",
+    notificationServicePort: "SYS_NOTIFICATIONSERVICE_PORT",
+    notificationServiceVersion: "SYS_NOTIFICATIONSERVICE_VERSION",
   },
 
   Tenant: {

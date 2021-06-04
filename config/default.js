@@ -125,7 +125,7 @@ module.exports = {
     notificationServiceHost: "notificationservice.app1.veery.cloud",
     notificationServicePort: "8089",
     notificationServiceVersion: "1.0.0.0",
-    dynamicPort : true
+    dynamicPort : false
   },
 
   Tenant: {
