@@ -49,13 +49,15 @@ module.exports = {
 
     ui_host: "http://localhost:3000/",
     agent_host: "http://localhost:3000/",
+    check_concurrent_limit: false,
+    multi_login: false,
   },
   Redis: {
     mode: "instance", //instance, cluster, sentinel
-    ip: "13.59.52.179",
+    ip: "",
     port: 6379,
     user: "",
-    password: "DuoS123",
+    password: "",
     sentinels: {
       hosts: "SENTNELS_URL",
       port: 16389,
@@ -64,10 +66,10 @@ module.exports = {
   },
   Security: {
     mode: "instance", //instance, cluster, sentinel
-    ip: "13.59.52.179",
+    ip: "",
     port: 6379,
     user: "",
-    password: "DuoS123",
+    password: "",
     sentinels: {
       hosts: "SENTNELS_URL",
       port: 16389,
@@ -83,19 +85,19 @@ module.exports = {
     version: "1.0.0.0",
   },
   RabbitMQ: {
-    ip: "13.59.52.179",
+    ip: "",
     port: 5672,
-    user: "duo ",
-    password: "DuoS123",
+    user: "",
+    password: "",
     vhost: "/",
   },
   Mongo: {
-    ip: "13.59.52.179",
+    ip: "",
     port: "",
     dbname: "dvpdb",
-    password: "DuoS123",
-    user: "duo",
-    type: "mongodb",
+    password: "",
+    user: "",
+    type: "mongodb+srv",
   },
   Services: {
     accessToken: "TOKEN",
@@ -105,6 +107,15 @@ module.exports = {
     sipuserendpointserviceHost: "sipuserendpointservice.app.veery.cloud",
     sipuserendpointservicePort: "8831",
     sipuserendpointserviceVersion: "1.0.0.0",
+    ruleserviceHost: "",
+    ruleservicePort: "8816",
+    ruleserviceVersion: "1.0.0.0",
+    fileserviceHost: "",
+    fileservicePort: "5648",
+    fileserviceVersion: "1.0.0.0",
+    liteticketHost: "",
+    liteticketPort: "3635",
+    liteticketVersion: "1.0.0.0",
     clusterconfigserviceHost: "clusterconfig.app.veery.cloud",
     clusterconfigservicePort: "8831",
     clusterconfigserviceVersion: "1.0.0.0",

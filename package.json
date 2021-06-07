@@ -12,6 +12,7 @@
   "dependencies": {
     "activedirectory": "^0.7.2",
     "amqp": "^0.2.7",
+    "array-unique": "^0.3.2",
     "biguint-format": "^1.0.2",
     "config": "^3.3.1",
     "connect-ensure-login": "^0.1.1",
@@ -26,6 +27,7 @@
     "express": "^4.17.1",
     "express-session": "^1.17.1",
     "flake-idgen": "^1.4.0",
+    "node-uuid": "^1.4.8",
     "oauth2orize": "^1.11.0",
     "oauth2orize-jwt-bearer": "^0.2.0",
     "passport": "^0.4.1",
@@ -39,7 +41,6 @@
     "restify-jwt": "^0.4.0",
     "stringformat": "0.0.5",
     "util": "^0.12.3",
-    "validator": "^12.2.0",
-    "node-uuid": "^1.4.8"
+    "validator": "^12.2.0"
   }
 }
