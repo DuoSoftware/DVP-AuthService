@@ -41,7 +41,6 @@ module.exports = {
     user: "SYS_MONGO_USER",
     type: "SYS_MONGO_TYPE",
     replicaset: "SYS_MONGO_REPLICASETNAME",
-  
   },
 
   auth: {
@@ -107,6 +106,7 @@ module.exports = {
     notificationServicePort: "SYS_NOTIFICATIONSERVICE_PORT",
     notificationServiceVersion: "SYS_NOTIFICATIONSERVICE_VERSION",
   },
+  
 
   Tenant: {
     activeTenant: "ACTIVE_TENANT",

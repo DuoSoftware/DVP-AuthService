@@ -592,6 +592,7 @@ var SetPackageToOrganisation = function (
     }
 }
 
+
   var er = ExtractResources(vPackage.resources);
   er.on("endExtractResources", function (userScopes) {
     if (userScopes) {
@@ -606,6 +607,59 @@ var SetPackageToOrganisation = function (
         if (!org.resourceAccessLimits) {
           org.resourceAccessLimits = [];
         }
+
+    //adding concurrent access 
+    if (vPackage.concurrentAccessLimit && vPackage.concurrentAccessLimit.length > 0) {
+        for (var i = 0; i < vPackage.concurrentAccessLimit.length; i++) {
+            var vCal = vPackage.concurrentAccessLimit[i];
+            var tempCal = {
+                accessType: vCal.accessType,
+                accessLimit: vCal.accessLimit,
+                currentAccess: []
+            };
+            var count = 0;
+            if (org.concurrentAccessLimits.length > 0) {
+                for (var j = 0; j < org.concurrentAccessLimits.length; j++) {
+                    count++;
+                    var cal = org.concurrentAccessLimits[j];
+                    if (cal.accessType == vCal.accessType) {
+                        if(vPackage.navigationType.toLowerCase() === 'user'){ // if user package is bought increment access limit, no replacement
+                            org.concurrentAccessLimits[j].accessLimit += tempCal.accessLimit;
+                        }
+                        else {
+                            org.concurrentAccessLimits[j].accessLimit = tempCal.accessLimit;
+                        }
+                        break;
+                    }
+                    if (count == org.concurrentAccessLimits.length) {
+                        org.concurrentAccessLimits.push(tempCal);
+
+                        if (vCal.accessType == "admin") {
+                            tempCal.currentAccess.push(org.ownerId);
+                        }
+                    }
+                }
+            } else {
+                if (vCal.accessType == "admin") {
+                    tempCal.currentAccess.push(org.ownerId);
+                }
+                org.concurrentAccessLimits.push(tempCal);
+            }
+        }
+    }
+
+
+    var er = ExtractResources(vPackage.resources);
+    er.on('endExtractResources', function (userScopes) {
+        if (userScopes) {
+            for (var i = 0; i < userScopes.length; i++) {
+                var scopes = userScopes[i];
+                var eUserScope = FilterObjFromArray(org.resourceAccessLimits, "scopeName", scopes.scope);
+
+                if (!org.resourceAccessLimits) {
+                    org.resourceAccessLimits = [];
+                }
+
 
         if (eUserScope) {
           if (
